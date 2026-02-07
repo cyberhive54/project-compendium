@@ -3,8 +3,13 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { MobileBottomNav } from "./MobileBottomNav";
+import { FloatingTimer } from "@/components/timer/FloatingTimer";
+import { useTimerEngine } from "@/hooks/useTimerEngine";
 
 export function AppLayout() {
+  // Run timer background engine (12h auto-pause, pomodoro phase transitions, notifications)
+  useTimerEngine();
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
@@ -19,6 +24,7 @@ export function AppLayout() {
         </div>
       </div>
       <MobileBottomNav />
+      <FloatingTimer />
     </SidebarProvider>
   );
 }
