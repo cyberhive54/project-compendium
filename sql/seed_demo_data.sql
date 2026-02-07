@@ -379,7 +379,7 @@ BEGIN
     (v_task17, v_uid, v_goal_jee, v_sub_optics, 'Optics Quick Quiz', 'test', 'done', 2500, CURRENT_DATE - INTERVAL '7 days', 30, 20, 15, 5, 10, 2.00, 0.50, 25, 5.00, 33.33, 0.60, NOW() - INTERVAL '7 days');
 
   -- Task 18: Scheduled for yesterday (should auto-transition to pending)
-  INSERT INTO tasks (task_id, user_id, goal_id, subject_id, chapter_id, name, task_type, status, priority_number, scheduled_date, estimated_duration) VALUES
+  INSERT INTO tasks (task_id, user_id, goal_id, subject_id, name, task_type, status, priority_number, scheduled_date, estimated_duration) VALUES
     (v_task18, v_uid, v_goal_boards, v_sub_hindi, 'Hindi Essay Writing', 'notes', 'scheduled', 2500, CURRENT_DATE - INTERVAL '1 day', 60);
 
   -- Task 19: DONE group_study (custom type, no date)
