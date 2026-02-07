@@ -1,21 +1,31 @@
 import { BookOpen, CheckCircle2, Flame, Target } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-const stats = [
-  { label: "Time Studied", value: "0h 0m", icon: BookOpen, color: "text-primary" },
-  { label: "Tasks Done", value: "0/0", icon: CheckCircle2, color: "text-success" },
-  { label: "Current Streak", value: "0 days", icon: Flame, color: "text-warning" },
-  { label: "Adherence", value: "—", icon: Target, color: "text-info" },
-];
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Dashboard() {
+  const { profile } = useAuth();
+
+  const stats = [
+    { label: "Time Studied", value: "0h 0m", icon: BookOpen, color: "text-primary" },
+    { label: "Tasks Done", value: "0/0", icon: CheckCircle2, color: "text-success" },
+    {
+      label: "Current Streak",
+      value: `${profile?.current_streak ?? 0} days`,
+      icon: Flame,
+      color: "text-warning",
+    },
+    { label: "Adherence", value: "—", icon: Target, color: "text-info" },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
       <div className="rounded-lg border bg-card p-6">
-        <h1 className="text-2xl font-bold">Welcome back! 👋</h1>
+        <h1 className="text-2xl font-bold">
+          Welcome back, {profile?.username ?? "Student"}! 👋
+        </h1>
         <p className="text-muted-foreground mt-1">
-          Level 1 · 0 day streak
+          Level {profile?.current_level ?? 1} · {profile?.current_streak ?? 0} day streak
         </p>
       </div>
 
