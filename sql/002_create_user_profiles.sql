@@ -58,11 +58,11 @@ BEGIN
   VALUES (
     NEW.id,
     'user_' || SUBSTR(NEW.id::TEXT, 1, 8),
-    encode(gen_random_bytes(32), 'hex')
+    encode(extensions.gen_random_bytes(32), 'hex')
   );
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
 
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
