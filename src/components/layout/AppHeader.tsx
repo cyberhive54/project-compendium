@@ -32,9 +32,9 @@ export function AppHeader() {
       <Button
         variant="ghost"
         size="icon"
-        className="md:hidden min-w-[44px] min-h-[44px]"
+        className="min-w-[44px] min-h-[44px]"
         onClick={toggleSidebar}
-        aria-label="Toggle menu"
+        aria-label="Toggle sidebar"
       >
         <Menu className="h-5 w-5" />
       </Button>
