@@ -1,82 +1,40 @@
-import { BookOpen, CheckCircle2, Flame, Target } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth } from "@/hooks/useAuth";
+import { WelcomeBanner } from "@/components/dashboard/WelcomeBanner";
+import { QuickStatsCards } from "@/components/dashboard/QuickStatsCards";
+import { TodaysTasks } from "@/components/dashboard/TodaysTasks";
+import { ActiveGoals } from "@/components/dashboard/ActiveGoals";
+import { UpcomingTasks } from "@/components/dashboard/UpcomingTasks";
+import { RecentActivity } from "@/components/dashboard/RecentActivity";
+import { ActiveSessionIndicator } from "@/components/dashboard/ActiveSessionIndicator";
+import { useDashboardStats } from "@/hooks/useDashboardStats";
 
 export default function Dashboard() {
-  const { profile } = useAuth();
-
-  const stats = [
-    { label: "Time Studied", value: "0h 0m", icon: BookOpen, color: "text-primary" },
-    { label: "Tasks Done", value: "0/0", icon: CheckCircle2, color: "text-success" },
-    {
-      label: "Current Streak",
-      value: `${profile?.current_streak ?? 0} days`,
-      icon: Flame,
-      color: "text-warning",
-    },
-    { label: "Adherence", value: "—", icon: Target, color: "text-info" },
-  ];
+  const { data: stats, isLoading } = useDashboardStats();
 
   return (
     <div className="space-y-6">
+      {/* Active Study Session Indicator */}
+      <ActiveSessionIndicator />
+
       {/* Welcome Banner */}
-      <div className="rounded-lg border bg-card p-6">
-        <h1 className="text-2xl font-bold">
-          Welcome back, {profile?.username ?? "Student"}! 👋
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Level {profile?.current_level ?? 1} · {profile?.current_streak ?? 0} day streak
-        </p>
-      </div>
+      <WelcomeBanner />
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat) => (
-          <Card key={stat.label}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {stat.label}
-              </CardTitle>
-              <stat.icon className={`h-4 w-4 ${stat.color}`} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-            </CardContent>
-          </Card>
-        ))}
+      <QuickStatsCards stats={stats} isLoading={isLoading} />
+
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left column: Tasks */}
+        <div className="lg:col-span-2 space-y-6">
+          <TodaysTasks />
+          <UpcomingTasks />
+        </div>
+
+        {/* Right column: Goals & Activity */}
+        <div className="space-y-6">
+          <ActiveGoals />
+          <RecentActivity />
+        </div>
       </div>
-
-      {/* Today's Tasks */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Today's Tasks</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <BookOpen className="h-10 w-10 text-muted-foreground/50 mb-3" />
-            <p className="text-muted-foreground">No tasks scheduled for today</p>
-            <p className="text-sm text-muted-foreground/70 mt-1">
-              Create your first goal to get started!
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Active Goals */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Active Goals</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <Target className="h-10 w-10 text-muted-foreground/50 mb-3" />
-            <p className="text-muted-foreground">No active goals yet</p>
-            <p className="text-sm text-muted-foreground/70 mt-1">
-              Set up a goal to track your progress
-            </p>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
