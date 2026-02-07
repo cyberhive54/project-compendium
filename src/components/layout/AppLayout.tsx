@@ -4,7 +4,9 @@ import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { FloatingTimer } from "@/components/timer/FloatingTimer";
+import { OfflineIndicator } from "./OfflineIndicator";
 import { useTimerEngine } from "@/hooks/useTimerEngine";
+import { useBackgroundJobs } from "@/hooks/useBackgroundJobs";
 import { LevelUpCelebration } from "@/components/gamification/LevelUpCelebration";
 import { BadgeUnlockToast } from "@/components/gamification/BadgeUnlockToast";
 import { XPToast } from "@/components/gamification/XPToast";
@@ -13,9 +15,12 @@ import { StreakMilestoneToast } from "@/components/gamification/StreakMilestoneT
 export function AppLayout() {
   // Run timer background engine (12h auto-pause, pomodoro phase transitions, notifications)
   useTimerEngine();
+  // Run background jobs (task transitions, midnight detection)
+  useBackgroundJobs();
 
   return (
     <SidebarProvider>
+      <OfflineIndicator />
       <div className="flex min-h-screen w-full">
         <AppSidebar />
         <div className="flex flex-1 flex-col min-w-0">
