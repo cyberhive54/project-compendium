@@ -13,6 +13,7 @@ import AnalyticsPage from "./pages/Analytics";
 import GoalsPage from "./pages/Goals";
 import SettingsPage from "./pages/SettingsPage";
 import TimerPage from "./pages/TimerPage";
+import BadgesPage from "./pages/BadgesPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import ProfileSetupPage from "./pages/ProfileSetupPage";
@@ -55,6 +56,7 @@ const App = () => (
                 <Route path="/goals" element={<GoalsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/timer" element={<TimerPage />} />
+                <Route path="/badges" element={<BadgesPage />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />

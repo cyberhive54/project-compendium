@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import type { Task } from "@/types/database";
+import { awardTaskXP, recordStudyDay } from "@/lib/gamificationService";
 
 interface TaskFilters {
   goalId?: string;
@@ -73,6 +74,13 @@ export function useTasks(filters?: TaskFilters) {
 
   const markDone = useMutation({
     mutationFn: async (taskId: string) => {
+      // Get task data before marking done (for XP calculation)
+      const { data: taskData } = await supabase
+        .from("tasks")
+        .select("task_type, actual_duration, accuracy_percentage")
+        .eq("task_id", taskId)
+        .single();
+
       const { error } = await supabase
         .from("tasks")
         .update({
@@ -81,8 +89,18 @@ export function useTasks(filters?: TaskFilters) {
         })
         .eq("task_id", taskId);
       if (error) throw error;
+
+      // Award XP and check streak (fire-and-forget)
+      if (user && taskData) {
+        awardTaskXP(user.id, taskData).catch(console.error);
+        recordStudyDay(user.id).catch(console.error);
+      }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["user-badges"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    },
   });
 
   const postpone = useMutation({
