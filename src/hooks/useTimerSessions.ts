@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
+import { awardTimerXP, recordStudyDay } from "@/lib/gamificationService";
 
 export interface TimerSession {
   session_id: string;
@@ -122,11 +123,24 @@ export function useTimerSessions(taskId?: string) {
 
       const { error } = await supabase.from("timer_sessions").insert(records);
       if (error) throw error;
+
+      // Calculate total focus duration for XP
+      const totalDuration = Math.round(
+        (input.endTime - input.startTime) / 1000 -
+          input.pausedDurationSeconds
+      );
+
+      // Award timer XP and check streak (fire-and-forget)
+      if (user && input.mode === "focus" && totalDuration >= 60) {
+        awardTimerXP(user.id, totalDuration).catch(console.error);
+        recordStudyDay(user.id).catch(console.error);
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["timer-sessions"] });
       qc.invalidateQueries({ queryKey: ["tasks"] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      qc.invalidateQueries({ queryKey: ["user-badges"] });
     },
   });
 

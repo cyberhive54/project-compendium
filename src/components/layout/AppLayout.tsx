@@ -5,6 +5,10 @@ import { AppHeader } from "./AppHeader";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { FloatingTimer } from "@/components/timer/FloatingTimer";
 import { useTimerEngine } from "@/hooks/useTimerEngine";
+import { LevelUpCelebration } from "@/components/gamification/LevelUpCelebration";
+import { BadgeUnlockToast } from "@/components/gamification/BadgeUnlockToast";
+import { XPToast } from "@/components/gamification/XPToast";
+import { StreakMilestoneToast } from "@/components/gamification/StreakMilestoneToast";
 
 export function AppLayout() {
   // Run timer background engine (12h auto-pause, pomodoro phase transitions, notifications)
@@ -25,6 +29,10 @@ export function AppLayout() {
       </div>
       <MobileBottomNav />
       <FloatingTimer />
+      <LevelUpCelebration />
+      <BadgeUnlockToast />
+      <XPToast />
+      <StreakMilestoneToast />
     </SidebarProvider>
   );
 }

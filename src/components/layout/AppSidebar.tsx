@@ -4,6 +4,7 @@ import {
   BarChart3,
   Target,
   Settings,
+  Trophy,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -22,6 +23,7 @@ const navItems = [
   { title: "Calendar", url: "/calendar", icon: CalendarDays },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Goals", url: "/goals", icon: Target },
+  { title: "Badges", url: "/badges", icon: Trophy },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
