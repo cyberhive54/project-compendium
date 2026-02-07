@@ -79,12 +79,12 @@ export function TaskListView({ goalId, onEditTask }: TaskListViewProps) {
         <ListFilter className="h-4 w-4 text-muted-foreground" />
 
         {!goalId && (
-          <Select value={goalFilter} onValueChange={setGoalFilter}>
+          <Select value={goalFilter || "__all__"} onValueChange={(v) => setGoalFilter(v === "__all__" ? "" : v)}>
             <SelectTrigger className="w-[160px] h-8 text-xs">
               <SelectValue placeholder="All goals" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All goals</SelectItem>
+              <SelectItem value="__all__">All goals</SelectItem>
               {goals.map((g) => (
                 <SelectItem key={g.goal_id} value={g.goal_id}>
                   {g.icon} {g.name}
@@ -94,12 +94,12 @@ export function TaskListView({ goalId, onEditTask }: TaskListViewProps) {
           </Select>
         )}
 
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter || "__all__"} onValueChange={(v) => setStatusFilter(v === "__all__" ? "" : v)}>
           <SelectTrigger className="w-[130px] h-8 text-xs">
             <SelectValue placeholder="All statuses" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All statuses</SelectItem>
+            <SelectItem value="__all__">All statuses</SelectItem>
             <SelectItem value="scheduled">Scheduled</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="in_progress">In Progress</SelectItem>

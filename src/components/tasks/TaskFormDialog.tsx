@@ -209,12 +209,12 @@ export function TaskFormDialog({
           {goalId && subjects.length > 0 && (
             <div className="space-y-1">
               <Label>Subject (optional)</Label>
-              <Select value={subjectId} onValueChange={setSubjectId}>
+              <Select value={subjectId || "__none__"} onValueChange={(v) => setSubjectId(v === "__none__" ? "" : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select subject" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="__none__">None</SelectItem>
                   {subjects.map((s) => (
                     <SelectItem key={s.subject_id} value={s.subject_id}>
                       {s.icon} {s.name}
@@ -228,12 +228,12 @@ export function TaskFormDialog({
           {subjectId && chapters.length > 0 && (
             <div className="space-y-1">
               <Label>Chapter (optional)</Label>
-              <Select value={chapterId} onValueChange={setChapterId}>
+              <Select value={chapterId || "__none__"} onValueChange={(v) => setChapterId(v === "__none__" ? "" : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select chapter" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="__none__">None</SelectItem>
                   {chapters.map((c) => (
                     <SelectItem key={c.chapter_id} value={c.chapter_id}>
                       {c.chapter_number ? `Ch ${c.chapter_number}: ` : ""}
@@ -248,12 +248,12 @@ export function TaskFormDialog({
           {chapterId && topics.length > 0 && (
             <div className="space-y-1">
               <Label>Topic (optional)</Label>
-              <Select value={topicId} onValueChange={setTopicId}>
+              <Select value={topicId || "__none__"} onValueChange={(v) => setTopicId(v === "__none__" ? "" : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select topic" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="__none__">None</SelectItem>
                   {topics.map((t) => (
                     <SelectItem key={t.topic_id} value={t.topic_id}>
                       {t.name}
