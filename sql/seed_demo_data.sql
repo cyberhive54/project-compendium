@@ -121,6 +121,29 @@ BEGIN
   END IF;
 
   -- =========================================================
+  -- 0.1 CLEANUP EXISTING DEMO DATA (allows re-running)
+  -- =========================================================
+  DELETE FROM timer_sessions WHERE user_id = v_uid;
+  DELETE FROM subtasks WHERE task_id IN (SELECT task_id FROM tasks WHERE user_id = v_uid);
+  DELETE FROM tasks WHERE user_id = v_uid;
+  DELETE FROM topics WHERE chapter_id IN (
+    SELECT chapter_id FROM chapters WHERE subject_id IN (
+      SELECT subject_id FROM subjects WHERE goal_id IN (
+        SELECT goal_id FROM goals WHERE user_id = v_uid)));
+  DELETE FROM chapters WHERE subject_id IN (
+    SELECT subject_id FROM subjects WHERE goal_id IN (
+      SELECT goal_id FROM goals WHERE user_id = v_uid));
+  DELETE FROM subjects WHERE goal_id IN (SELECT goal_id FROM goals WHERE user_id = v_uid);
+  DELETE FROM streams WHERE goal_id IN (SELECT goal_id FROM goals WHERE user_id = v_uid);
+  DELETE FROM goals WHERE user_id = v_uid;
+  DELETE FROM projects WHERE user_id = v_uid;
+  DELETE FROM study_sessions_config WHERE user_id = v_uid;
+  DELETE FROM user_task_types WHERE user_id = v_uid;
+  DELETE FROM holidays WHERE user_id = v_uid;
+  DELETE FROM badges WHERE user_id = v_uid;
+  DELETE FROM backups_metadata WHERE user_id = v_uid;
+
+  -- =========================================================
   -- 1. USER PROFILE (update existing auto-created row)
   -- =========================================================
   UPDATE user_profiles SET
