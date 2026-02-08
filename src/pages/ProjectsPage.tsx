@@ -14,6 +14,7 @@ import { ProjectCard } from "@/components/projects/ProjectCard";
 import { ProjectFormDialog } from "@/components/projects/ProjectFormDialog";
 import { ArchiveProjectDialog } from "@/components/projects/ArchiveProjectDialog";
 import { GoalFormDialog } from "@/components/goals/GoalFormDialog";
+import { AddGoalToProjectDialog } from "@/components/projects/AddGoalToProjectDialog";
 import { GoalCard } from "@/components/goals/GoalCard";
 import { ArchiveConfirmDialog } from "@/components/goals/ArchiveConfirmDialog";
 import { TaskFormDialog } from "@/components/tasks/TaskFormDialog";
@@ -174,8 +175,10 @@ export default function ProjectsPage() {
 
   const handleAddGoal = (projectId: string) => {
     setGoalPresetProjectId(projectId);
-    setCreateGoalOpen(true);
+    setAddGoalDialogOpen(true);
   };
+
+  const [addGoalDialogOpen, setAddGoalDialogOpen] = useState(false);
 
   const handleCreateGoal = (values: Record<string, any>) => {
     createGoal.mutate(values as Partial<Goal>, {
@@ -401,12 +404,21 @@ export default function ProjectsPage() {
         }}
       />
 
-      {/* Create Goal */}
+      {/* Add Goal to Project (tabbed: Create/Add Existing) */}
+      {goalPresetProjectId && (
+        <AddGoalToProjectDialog
+          open={addGoalDialogOpen}
+          onOpenChange={setAddGoalDialogOpen}
+          projectId={goalPresetProjectId}
+          onCreateGoal={handleCreateGoal}
+        />
+      )}
+
+      {/* Create Goal (standalone, not from project context) */}
       <GoalFormDialog
         open={createGoalOpen}
         onOpenChange={setCreateGoalOpen}
         onSubmit={handleCreateGoal}
-        presetProjectId={goalPresetProjectId}
       />
 
       {/* Edit Goal */}

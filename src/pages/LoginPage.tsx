@@ -7,6 +7,7 @@ import { BookOpen, Loader2, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -38,6 +39,7 @@ export default function LoginPage() {
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/";
 
@@ -64,11 +66,27 @@ export default function LoginPage() {
     setIsSubmitting(false);
 
     if (error) {
-      toast({
-        variant: "destructive",
-        title: "Login failed",
-        description: error.message,
-      });
+      const msg = error.message.toLowerCase();
+      if (msg.includes("invalid login credentials") || msg.includes("invalid") || msg.includes("credentials")) {
+        toast({
+          variant: "destructive",
+          title: "Login failed",
+          description: "Incorrect email or password. Forgot your password?",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Login failed",
+          description: error.message,
+        });
+      }
+    } else {
+      // Handle remember me
+      if (rememberMe) {
+        localStorage.removeItem("studytracker_login_timestamp");
+      } else {
+        localStorage.setItem("studytracker_login_timestamp", Date.now().toString());
+      }
     }
   };
 
@@ -109,7 +127,15 @@ export default function LoginPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <div className="flex items-center justify-between">
+                      <FormLabel>Password</FormLabel>
+                      <Link
+                        to="/forgot-password"
+                        className="text-xs text-primary hover:underline"
+                      >
+                        Forgot password?
+                      </Link>
+                    </div>
                     <FormControl>
                       <div className="relative">
                         <Input
@@ -138,6 +164,22 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
+
+              {/* Remember Me */}
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="remember-me"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked === true)}
+                />
+                <label
+                  htmlFor="remember-me"
+                  className="text-sm text-muted-foreground cursor-pointer select-none"
+                >
+                  Remember me for 3 days
+                </label>
+              </div>
+
               <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Sign In
@@ -145,7 +187,7 @@ export default function LoginPage() {
             </form>
           </Form>
         </CardContent>
-        <CardFooter className="justify-center">
+        <CardFooter className="flex-col gap-2">
           <p className="text-sm text-muted-foreground">
             Don't have an account?{" "}
             <Link to="/signup" className="text-primary font-medium hover:underline">

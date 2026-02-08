@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import {
   ChevronDown,
   ChevronRight,
@@ -47,6 +48,13 @@ export function ProjectCard({
   onArchiveGoal,
   onAddTask,
 }: ProjectCardProps) {
+  const navigate = useNavigate();
+
+  const handleNameClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/projects/${project.project_id}`);
+  };
+
   return (
     <Collapsible open={expanded} onOpenChange={onToggleExpand}>
       <Card
@@ -55,9 +63,12 @@ export function ProjectCard({
       >
         <CardHeader className="pb-2">
           <div className="flex items-start gap-3">
-            <span className="text-2xl">{project.icon}</span>
+            <span className="text-2xl cursor-pointer" onClick={handleNameClick}>{project.icon}</span>
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-base truncate">
+              <h3
+                className="font-semibold text-base truncate cursor-pointer hover:text-primary transition-colors"
+                onClick={handleNameClick}
+              >
                 {project.name}
               </h3>
               {project.description && (

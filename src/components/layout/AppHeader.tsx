@@ -74,7 +74,7 @@ export function AppHeader() {
             <DropdownMenuItem onClick={() => navigate("/settings")}>
               Settings
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/profile-setup")}>
+            <DropdownMenuItem onClick={() => navigate("/settings")}>
               Edit Profile
             </DropdownMenuItem>
             <DropdownMenuSeparator />

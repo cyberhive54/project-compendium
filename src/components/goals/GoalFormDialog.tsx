@@ -94,6 +94,7 @@ export function GoalFormDialog({
     onSubmit({
       ...rest,
       project_id: project_id === "__none__" ? null : project_id,
+      target_date: rest.target_date || null,
     });
     form.reset();
     onOpenChange(false);

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ChevronDown,
   ChevronRight,
@@ -25,17 +26,28 @@ interface GoalCardProps {
 }
 
 export function GoalCard({ goal, onEdit, onArchive, onAddTask, projectInfo }: GoalCardProps) {
+  const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
   const goalType = GOAL_TYPES.find((t) => t.value === goal.goal_type);
+
+  const handleNameClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/goals/${goal.goal_id}`);
+  };
 
   return (
     <Card className="overflow-hidden">
       <CardHeader className="pb-2">
         <div className="flex items-start gap-3">
-          <span className="text-2xl">{goal.icon}</span>
+          <span className="text-2xl cursor-pointer" onClick={handleNameClick}>{goal.icon}</span>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-semibold text-base truncate">{goal.name}</h3>
+              <h3
+                className="font-semibold text-base truncate cursor-pointer hover:text-primary transition-colors"
+                onClick={handleNameClick}
+              >
+                {goal.name}
+              </h3>
               <Badge
                 variant="secondary"
                 className="text-xs shrink-0"

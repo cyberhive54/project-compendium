@@ -96,7 +96,11 @@ export function TodaysTasks() {
               key={task.task_id}
               task={task}
               onMarkDone={handleMarkDone}
-              onStartTimer={() => navigate("/timer")}
+              onStartTimer={() =>
+                navigate("/timer", {
+                  state: { taskId: task.task_id, taskName: task.name },
+                })
+              }
             />
           ))}
           {/* Done tasks with muted styling */}
