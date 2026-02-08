@@ -161,7 +161,7 @@ export default function ProfileSetupPage() {
 
     await refreshProfile();
     toast({ title: "Profile set up!", description: "Welcome to StudyTracker 🎉" });
-    navigate("/");
+    navigate("/dashboard");
   };
 
   return (
@@ -242,7 +242,7 @@ export default function ProfileSetupPage() {
           <Button
             variant="ghost"
             className="w-full text-muted-foreground"
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/dashboard")}
           >
             Skip for now
           </Button>

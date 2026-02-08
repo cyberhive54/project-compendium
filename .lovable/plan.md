@@ -1,9 +1,9 @@
 
-# Edit 02 - Custom 404 Page, Landing Page, and Goal Detail Page Redesign
+# Edit 02 - Custom 404 Page, Landing Page, and Goal Detail Page Redesign ✅ COMPLETED
 
 ## Overview
 
-Three changes: (1) a polished custom 404 page, (2) a public landing/home page with CTAs and a Google login mockup, and (3) a complete redesign of the Goal Detail Page to match the reference mockups at ~80% fidelity.
+All three changes implemented: (1) polished custom 404 page with animated gradient and auth-aware CTAs, (2) public landing page at `/` with Google login mockup on auth pages, (3) Goal Detail Page redesigned with flat grid layout matching mockups. Root route changed from Dashboard to Landing/Dashboard conditional. All internal nav updated to `/dashboard`.
 
 ---
 
