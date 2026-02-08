@@ -1,305 +1,275 @@
 
 
-# Project Management System -- Complete Implementation Plan (Revised)
-
-All tweaks from the checklist have been incorporated. Mandatory, highly recommended, optional enhancements, and additional edge cases are all addressed below.
-
----
+# Edit 01 - Tweaks and Feature Additions Plan
 
 ## Overview
 
-The Project system is the top-level optional container in the study hierarchy: **Project > Goal > Stream > Subject > Chapter > Topic > Task**. The database table and data hook already exist but there is no UI. This plan adds full project management with CRUD, goal assignment, cascade archive, and proper integration across the app.
+This plan covers 15 items spanning authentication improvements, timer UX fixes, offline indicator redesign, goal form bug fix, hierarchy detail pages with intuitive UI, and per-project/goal analytics. Items are grouped into logical phases.
 
 ---
 
-## What Already Exists
+## Phase 1: Authentication & Onboarding Improvements
 
-- `projects` table in Supabase (SQL 003) with name, description, color, icon, archive support
-- `useProjects.ts` hook with create, update, archive, unarchive, remove mutations
-- `Project` TypeScript type in `database.ts`
-- Goals table has `project_id` FK (nullable, ON DELETE SET NULL)
-- `ArchiveConfirmDialog` component (reusable, supports `childCount` and `isPermanentDelete`)
-- `useGoals.ts` already has full cascade archive logic (Goal > Streams > Subjects > Chapters > Topics > Tasks)
+### 1.1 Move Username + Avatar to Signup Page (Items #1, #7)
+
+**Current state:** Signup page collects only email + password. A separate `/profile-setup` page handles username + avatar upload.
+
+**Changes:**
+- **`src/pages/SignupPage.tsx`** -- Add `username` field (3-20 chars, letters/numbers/underscores, Zod validated) and avatar upload circle (reuse the same pattern from `ProfileSetupPage.tsx`) directly into the signup form, above the email field
+- Avatar file size limit: **2MB** (already enforced in ProfileSetupPage, will carry over)
+- On submit: call `signUp()` first, then update `user_profiles` with the chosen username and upload avatar to `avatars` bucket
+- Since Supabase auto-creates the profile via the `handle_new_user()` trigger with a default `user_` username, the signup flow will update that profile immediately after auth signup succeeds
+- **`src/pages/ProfileSetupPage.tsx`** -- Keep the file but it becomes a simple redirect. Users who already signed up without setting username (legacy) can still access it from Settings
+- **`src/App.tsx`** -- Remove the dedicated `/profile-setup` route (or redirect it to `/settings`)
+- **`src/components/layout/AppHeader.tsx`** -- Change "Edit Profile" link from `/profile-setup` to navigate to `/settings` with profile tab active
+
+### 1.2 Remember Me (Item #2)
+
+**Current state:** Supabase JS client uses default session persistence (localStorage, no expiry control).
+
+**Changes:**
+- **`src/pages/LoginPage.tsx`** -- Add a "Remember me" checkbox below the password field
+- **`src/hooks/useAuth.tsx`** -- When "Remember me" is NOT checked, after successful sign-in, store a `login_timestamp` in localStorage. In the `onAuthStateChange` listener, check if the timestamp is older than 3 days and auto-sign-out if so
+- When "Remember me" IS checked, no timestamp is stored (session persists normally via Supabase defaults)
+- On app load (in AuthProvider useEffect), check if `login_timestamp` exists and is > 3 days old, and call `signOut()` if expired
+
+### 1.3 Email Verification Conditional Display (Item #3)
+
+**Current state:** After signup, the app always shows "Check your email" confirmation screen regardless of whether email verification is enabled in Supabase.
+
+**Changes:**
+- **`src/pages/SignupPage.tsx`** -- After `signUp()`, check the response. If `data.user` exists and `data.user.email_confirmed_at` is already set (or `data.session` is immediately returned), it means email verification is disabled -- skip the "check email" screen and redirect to dashboard. Only show the email verification screen when `data.session` is null (meaning confirmation is pending)
+- This makes the flow adaptive: verification screen only appears when Supabase email confirmation is turned on
+
+### 1.4 Duplicate Email Handling (Item #4)
+
+**Current state:** On signup, duplicate email shows a generic Supabase error message.
+
+**Changes:**
+- **`src/pages/SignupPage.tsx`** -- In the `onSubmit` error handler, detect the Supabase error for duplicate email (error message contains "User already registered" or similar). Display a custom toast/error message: "This email is already registered. Please sign in or reset your password."
+- Add inline links to `/login` and to the forgot password page within the error message
+- **`src/pages/LoginPage.tsx`** -- Similarly, improve "Invalid login credentials" error to say: "Incorrect email or password. Forgot your password?" with a link to the reset page
+
+### 1.5 Forgot Password (Item #5)
+
+**Current state:** No forgot/reset password flow exists.
+
+**Changes:**
+- **New file: `src/pages/ForgotPasswordPage.tsx`** -- A simple page with an email input. Calls `supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/reset-password' })`. Shows confirmation message after sending
+- **New file: `src/pages/ResetPasswordPage.tsx`** -- Handles the redirect from the Supabase email link. Extracts the token from URL hash/params, then shows a "New Password" + "Confirm Password" form. Calls `supabase.auth.updateUser({ password })` to set the new password
+- **`src/App.tsx`** -- Add routes: `/forgot-password` and `/reset-password` (public, not protected)
+- **`src/pages/LoginPage.tsx`** -- Add "Forgot password?" link below the password field, linking to `/forgot-password`
+
+### 1.6 Reset Password in Settings (Item #6)
+
+**Current state:** Settings has a Profile tab but no password change option.
+
+**Changes:**
+- **`src/components/settings/ProfileSettings.tsx`** -- Add a "Change Password" section below the email field. Contains: Current password (not strictly needed with Supabase, but good UX), New Password, Confirm New Password inputs. Submit calls `supabase.auth.updateUser({ password: newPassword })`. Show success/error toast
+- Add Zod validation matching signup rules (8+ chars, uppercase, lowercase, number)
 
 ---
 
-## 1. Projects Page (`src/pages/ProjectsPage.tsx`)
+## Phase 2: Timer UX Improvements
 
-A dedicated page showing all projects as expandable cards with goal nesting.
+### 2.1 Auto-Minimize Timer on Page Navigation (Item #8)
+
+**Current state:** When a timer is running and user navigates away from `/timer`, the `FloatingTimer` shows in the corner (if `isMinimized` is true). But `isMinimized` is only set when user clicks "Minimize" manually. When the timer starts, `isFullscreen: true, isMinimized: false` is set.
+
+**Changes:**
+- **`src/pages/TimerPage.tsx`** -- Add a `useEffect` cleanup that sets `setMinimized(true)` when the user navigates AWAY from the timer page (i.e., when the component unmounts while a timer is running)
+- This ensures that whenever a user leaves the timer page with an active timer, it automatically appears as the floating minimized timer on all other pages
+
+### 2.2 Start Timer with Pre-Selected Task (Item #9)
+
+**Current state:** Calendar and Dashboard pass `taskId` via `navigate("/timer", { state: { taskId } })`, but `TimerPage` never reads `location.state` -- it always opens the TaskSelectDialog for manual selection.
+
+**Changes:**
+- **`src/pages/TimerPage.tsx`** -- Read `location.state?.taskId` on mount. If a valid `taskId` is present:
+  1. Look up the task name from the tasks query
+  2. Auto-start the timer with that task (call `startTimer(taskId, taskName, false)`)
+  3. Skip the TaskSelectDialog entirely
+- **`src/components/dashboard/TodaysTasks.tsx`** -- Update `onStartTimer` to pass the `task.task_id` to the navigation state (currently it just navigates to `/timer` without the task ID)
+- **`src/components/tasks/TaskCard.tsx`** -- Add a "Start Timer" option in the dropdown menu that navigates to `/timer` with the task ID in state
+
+---
+
+## Phase 3: UI Polish
+
+### 3.1 Offline Indicator Redesign (Item #10)
+
+**Current state:** A full-width yellow banner at the top of the screen showing "You're offline" text.
+
+**Changes:**
+- **`src/components/layout/OfflineIndicator.tsx`** -- Replace the banner with a small `WifiOff` icon in the header area (or fixed position). On hover or click, show a tooltip/popover with the message "You're offline -- changes will sync when connection is restored"
+- Use Radix `Tooltip` component for the hover behavior
+- Icon should be subtle but noticeable (e.g., amber/warning colored)
+
+### 3.2 Fix Goal Date Validation Error (Item #11)
+
+**Current state:** The `GoalFormDialog` sends an empty string `""` for `target_date` when the date field is not filled. The database expects either a valid date or `null`, causing "invalid input syntax for type date" error.
+
+**Changes:**
+- **`src/components/goals/GoalFormDialog.tsx`** -- In the `handleSubmit` function, convert empty `target_date` string to `null` before passing to the mutation. Add: `target_date: rest.target_date || null`
+- Also update the Zod schema to transform empty string to undefined: `target_date: z.string().optional().transform(v => v || undefined)`
+
+---
+
+## Phase 4: Goal Dialog Enhancement (Item #12)
+
+### 4.1 Tabbed Create/Add Existing Goals in Project Context
+
+**Current state:** When clicking "+ Goal" on a ProjectCard, it always opens `GoalFormDialog` to create a new goal.
+
+**Changes:**
+- **New file: `src/components/projects/AddGoalToProjectDialog.tsx`** -- A dialog with two tabs:
+  - **"Create New" tab**: Renders the existing `GoalFormDialog` form content (project pre-selected)
+  - **"Add Existing" tab**: Shows a list of unassigned goals (goals with `project_id = null`) with checkboxes. User can select one or more goals and click "Add to Project" which updates their `project_id`
+- **`src/pages/ProjectsPage.tsx`** -- Replace the `GoalFormDialog` usage for project-context goal creation with the new `AddGoalToProjectDialog`
+- The standalone "+ Goal" button on the Goals page continues to use the simple `GoalFormDialog`
+
+---
+
+## Phase 5: Dedicated Project and Goal Detail Pages (Items #13, #14)
+
+### 5.1 Project Detail Page
+
+**New file: `src/pages/ProjectDetailPage.tsx`**
+
+A full page for a single project accessed via `/projects/:projectId`.
 
 **Layout:**
-- Page header: "Projects" title + "+ Project" button
-- Active projects listed as `ProjectCard` components (collapsed by default)
-- "Unassigned Goals" section at the bottom showing goals where `project_id` is null
-- Toggle switch or tab to show/hide archived projects (with unarchive action)
-- Empty state: folder icon, "No projects yet" message, "+ Create Your First Project" CTA button
-- Skeleton loading states while data loads
+- Header section: Project icon, name, description, color accent, edit/archive action buttons
+- Stats bar: Goal count, task completion (done/total), overall progress percentage + progress bar
+- Full hierarchy section with excellent UX for adding items at any level:
+  - Goals listed as expandable cards
+  - Each Goal expands to show Streams, and the Subject > Chapter > Topic tree (reusing `HierarchyTree`)
+  - Prominent "+ Goal" button at the top, and "+ Task" buttons at each goal level
+- **Key UX principle**: Every level in the hierarchy has a clearly visible "+" button to add children directly. No need to navigate elsewhere
+- Bottom section: Per-project analytics summary (see Phase 6)
 
-**v1.1 features (not built now, noted for future):**
-- Search bar to filter projects by name
-- Sort dropdown (Name A-Z, Recently Used, Most Tasks)
-- Grid vs List view toggle
+**Navigation:**
+- Clicking a `ProjectCard` on `/projects` navigates to `/projects/:projectId`
+- Breadcrumb: Projects > {Project Name}
 
----
+### 5.2 Goal Detail Page
 
-## 2. Project Form Dialog (`src/components/projects/ProjectFormDialog.tsx`)
+**New file: `src/pages/GoalDetailPage.tsx`**
 
-Create/Edit dialog following the same pattern as `GoalFormDialog`.
+A full page for a single goal accessed via `/goals/:goalId`.
 
-**Fields:**
-- Name (required, max 100 chars, Zod validated)
-- Description (optional, max 500 chars, textarea)
-- Color: **Preset palette of 8 colors** displayed as a grid of colored circles
-- Icon: text input accepting emojis (default: book emoji)
+**Layout:**
+- Header: Goal icon, name, type badge, project badge (if assigned), target date, description, edit/archive buttons
+- Full hierarchy tree below the header showing the complete subtree:
+  - Streams section (with "+ Stream" button)
+  - Subjects section (with "+ Subject" button)
+  - Each Subject expands to Chapters > Topics
+  - Tasks section at the bottom (with "+ Task" button)
+- Each hierarchy level has inline "+" buttons for adding children at that exact position
+- The UX focus: A user can land on a Goal page and immediately add a Subject, then add Chapters under it, then Topics under those chapters -- all without leaving the page
+- Bottom section: Per-goal analytics summary (see Phase 6)
 
-**Preset Color Palette (8 colors):**
-| Color   | Hex       |
-|---------|-----------|
-| Blue    | `#3B82F6` (default) |
-| Green   | `#10B981` |
-| Amber   | `#F59E0B` |
-| Red     | `#EF4444` |
-| Purple  | `#8B5CF6` |
-| Pink    | `#EC4899` |
-| Teal    | `#14B8A6` |
-| Orange  | `#F97316` |
+**Navigation:**
+- Clicking a `GoalCard` anywhere navigates to `/goals/:goalId`
+- Breadcrumb: Projects > {Project Name} > {Goal Name} (or Goals > {Goal Name} if unassigned)
 
-**Color Picker UI:**
-- Grid of 8 colored circles (32x32px each, with gap)
-- Selected color shows a ring/border to indicate selection
-- Clicking a circle selects it
-- No free-form hex input in v1 (can be added in v1.1)
+### 5.3 Router Updates
 
----
+**`src/App.tsx`:**
+- Add route: `/projects/:projectId` -> `ProjectDetailPage`
+- Add route: `/goals/:goalId` -> `GoalDetailPage`
+- Both inside the protected `AppLayout` group
 
-## 3. Project Card (`src/components/projects/ProjectCard.tsx`)
+### 5.4 Card Click Navigation
 
-Expandable card displaying project details, stats, and nested goals.
-
-**Header (always visible):**
-- Left: Project icon + name + description (1-line truncated)
-- Left border: 4px thick colored accent using project's color
-- Stats row (3 stats, horizontal, small text with icons):
-  - Stat 1: Goal count (e.g., "5 goals")
-  - Stat 2: Task completion (e.g., "12/20 tasks")
-  - Stat 3: Progress percentage (e.g., "60% complete")
-- Action buttons: Edit | Archive | + Add Goal
-- Expand/Collapse chevron button
-
-**Expanded content (lazy-loaded):**
-- List of `GoalCard` components filtered by this `project_id`
-- If zero goals: empty state with folder icon, "No goals in this project yet", and "+ Add First Goal" button that opens `GoalFormDialog` with this project pre-selected
-
-**Progress Calculation:**
-```text
-1. Get all non-archived goals where project_id = this project
-2. Get all non-archived tasks under those goals
-3. totalTasks = count of all tasks
-4. doneTasks = count of tasks where status = 'done'
-5. progress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0
-6. Display: "{progress}% complete" + progress bar
-```
-This calculation will live as a utility function (`getProjectProgress`) called within the ProjectCard component, using data already available from the goals and tasks queries.
-
-**Expand/Collapse Behavior:**
-- All projects start collapsed by default
-- Expand state persisted in localStorage (key: `expanded_projects`)
-- Goals are fetched only when a project is expanded (lazy loading)
-- Smooth CSS animation on expand/collapse (using Radix Collapsible)
-
-**Project Color Usage:**
-- Project card: 4px colored left border
-- Goal badges on other pages: project color as subtle border/accent
-- Backgrounds remain neutral; color is accent-only
-- Ensure contrast with text (all 8 preset colors already have sufficient contrast)
+- **`src/components/projects/ProjectCard.tsx`** -- Make the project name/icon area clickable, navigating to `/projects/:projectId`. Action buttons (edit, archive, etc.) use `stopPropagation()` to prevent navigation
+- **`src/components/goals/GoalCard.tsx`** -- Make the goal name/icon area clickable, navigating to `/goals/:goalId`. Action buttons use `stopPropagation()`
+- Both cards remain functional on the listing pages (Projects page, Goals page) with existing expand/collapse behavior, but clicking the title area navigates to the detail page
 
 ---
 
-## 4. Cascade Archive for Projects
+## Phase 6: Per-Project and Per-Goal Analytics (Item #15)
 
-When archiving a project, all child goals and their entire subtree must be archived.
+### 6.1 Analytics Components
 
-**Archive Confirmation Dialog:**
-- Title: `Archive Project '{projectName}'?`
-- Message body (fetched counts before showing dialog):
-  - "This will archive {goalCount} goal(s), along with all their streams, subjects, chapters, topics, and {taskCount} task(s)."
-  - "You can restore this project and its contents from the Archived Projects view."
-- Buttons: "Cancel" (outline) | "Archive Project" (destructive/red style)
-- Counts are fetched by querying goals where `project_id = id` and `archived = false`, then summing tasks under those goals
+**New file: `src/components/analytics/ProjectAnalytics.tsx`**
 
-**Archive Logic in `useProjects.ts`:**
-```text
-archive(projectId):
-  1. Fetch all non-archived goals where project_id = projectId
-  2. For each goal, run the existing goal archive cascade logic:
-     (Goal -> Streams -> Subjects -> Chapters -> Topics -> Tasks)
-  3. Archive the project record itself
-  4. Invalidate queries: projects, goals, streams, subjects, chapters, topics, tasks
-```
+Compact analytics panel for a single project, shown on the project detail page:
+- Total study time across all project goals (from `timer_sessions` where task's goal belongs to this project)
+- Task completion rate (done/total tasks)
+- Average accuracy across exam-type tasks
+- Mini study heatmap filtered to project goals
+- Subject-wise time distribution within the project
 
-**Delete vs Archive Clarification:**
-- Archive is the default action (soft delete, reversible)
-- Permanent delete is only available from the "Archived Projects" view
-- Permanent delete requires double confirmation (existing `ArchiveConfirmDialog` with `isPermanentDelete=true`)
-- On permanent delete: database automatically sets `project_id = NULL` on child goals (FK ON DELETE SET NULL)
+**New file: `src/components/analytics/GoalAnalytics.tsx`**
 
----
+Compact analytics panel for a single goal, shown on the goal detail page:
+- Total study time for this goal's tasks
+- Task completion rate
+- Score trend chart (for exam-type tasks under this goal)
+- Subject-wise breakdown within this goal
+- Average accuracy
 
-## 5. Goal Form Updates
+### 6.2 Analytics Hook Updates
 
-**`GoalFormDialog.tsx` changes:**
-- Add optional "Project" dropdown at the top of the form (before name field)
-- Uses `useProjects()` to fetch active projects
-- Select options: "No Project" (sentinel `__none__`) + list of active projects (showing icon + name)
-- On submit: include `project_id` (null if `__none__` selected)
-- When editing, pre-select the current project
-- When opened from a ProjectCard's "+ Add Goal" button, pre-select that project
-
-**Moving Goals Between Projects edge case:**
-- When editing a goal, user can change its project via the dropdown
-- Changing project just updates `goal.project_id`; tasks remain linked to the goal
-- Stats recalculate for both old and new projects automatically (React Query invalidation)
-
----
-
-## 6. Goals Page Integration
-
-**`Goals.tsx` changes:**
-- Add project filter dropdown at the top of the goals list (options: "All Projects", each project by name, "Unassigned")
-- Filter the displayed goals by selected project
-- Show a small project badge/tag on each `GoalCard` if the goal belongs to a project (using project color as accent)
-
-**`GoalCard.tsx` changes:**
-- If goal has a `project_id`, display a small badge below the goal type badge showing the project name with the project's color accent
-
----
-
-## 7. Navigation Updates
-
-**Sidebar order (`AppSidebar.tsx`):**
-```text
-Dashboard
-Calendar
-Analytics
-Projects     <-- NEW (FolderKanban icon from lucide-react)
-Goals
-Badges
-Settings
-```
-
-**Mobile bottom nav (`MobileBottomNav.tsx`):** No changes needed (limited to 5 items: Dashboard, Calendar, Timer, Analytics, Profile). Projects is accessible via the sidebar on desktop or the hamburger menu.
-
-**Router (`App.tsx`):**
-- Add `<Route path="/projects" element={<ProjectsPage />} />` inside the protected AppLayout group
-
----
-
-## 8. Seed Data Update (`sql/seed_demo_data.sql`)
-
-Update the existing seed file to wire projects to goals:
-
-**Projects to create:**
-| Project Name       | Color     | Icon | Description |
-|-------------------|-----------|------|-------------|
-| JEE Preparation   | `#3B82F6` | graduation cap emoji  | Comprehensive JEE Main + Advanced prep |
-| 12th Board Exams  | `#10B981` | books emoji  | CBSE Class 12 board exam preparation |
-
-**Goal-to-Project linking:**
-- "JEE Main 2026" goal -> JEE Preparation project
-- "JEE Advanced 2026" goal -> JEE Preparation project (if exists, or the existing JEE goal)
-- "12th Board" goal -> 12th Board Exams project
-- "Semester" and "Custom" goals remain unassigned (to test unassigned section)
-
-**SQL changes:**
-- Update the existing project INSERT statements to use the names/colors above
-- Add `UPDATE goals SET project_id = v_proj_competitive WHERE goal_id = v_goal_jee;`
-- Add `UPDATE goals SET project_id = v_proj_academic WHERE goal_id = v_goal_boards;`
-
----
-
-## Implementation Checklist
-
-### Phase 1: Database Verification
-- [ ] Verify projects table exists with all fields (name, description, color, icon, archived, archived_at)
-- [ ] Verify goals.project_id foreign key exists and is nullable
-- [ ] Test ON DELETE SET NULL (delete project -> goals.project_id becomes null)
-
-### Phase 2: Build UI Components
-- [ ] Create `ProjectFormDialog` component (create/edit form with preset color palette)
-- [ ] Create `ProjectCard` component (expandable card with stats, lazy-loaded goals)
-- [ ] Create `ProjectsPage` component (main page with project list + unassigned goals)
-- [ ] Create `ArchiveProjectDialog` wrapper (confirmation with fetched counts)
-
-### Phase 3: Integrate with Existing Pages
-- [ ] Add project dropdown to `GoalFormDialog` (with `__none__` sentinel)
-- [ ] Add project badge display to `GoalCard`
-- [ ] Add project filter dropdown to `Goals` page
-- [ ] Add "Projects" menu item to sidebar navigation (FolderKanban icon)
-- [ ] Add `/projects` route to `App.tsx`
-
-### Phase 4: Hook & Logic Updates
-- [ ] Update `useProjects.ts` archive mutation with cascade logic
-- [ ] Add progress calculation utility
-- [ ] Add archive count fetching (goals + tasks counts before showing dialog)
-
-### Phase 5: Testing and Polish
-- [ ] Test empty state (no projects created yet)
-- [ ] Test empty project (project with no goals)
-- [ ] Test archive/unarchive flow with cascade verification
-- [ ] Test moving goal from one project to another
-- [ ] Test "Unassigned Goals" section shows goals without project_id
-- [ ] Test preset color selection works
-- [ ] Test icon input accepts emojis
-- [ ] Test expand/collapse persists in localStorage
-
-### Phase 6: Seed Data
-- [ ] Update seed SQL to create named demo projects
-- [ ] Link JEE and Board goals to their respective projects
-- [ ] Verify demo account shows 2 projects with linked goals
-
----
-
-## Edge Cases Handled
-
-1. **Projects with no goals**: Show empty state with folder icon, "No goals in this project yet" message, and "+ Add First Goal" CTA
-2. **Goals with no project**: Appear in "Unassigned Goals" section on Projects page
-3. **Cascade archive**: Archiving a project cascades to all goals -> streams -> subjects -> chapters -> topics -> tasks
-4. **ON DELETE SET NULL**: Permanently deleting a project sets `project_id = NULL` on child goals (handled by DB FK)
-5. **Unique name constraint**: Project names are unique per user (enforced by DB)
-6. **Moving goals between projects**: Editing a goal allows changing its project; tasks stay linked to goal; stats recalculate automatically
-7. **Delete vs Archive**: Archive is reversible (default action); permanent delete only from Archived view with double confirmation
-8. **Color defaults**: New projects default to Blue (#3B82F6)
-9. **Expand state persistence**: Which projects are expanded is remembered across page visits via localStorage
-
----
-
-## Future Enhancements (v1.1+)
-
-- Drag and drop goals between projects
-- Full color picker with hex input
-- Project templates (pre-filled for common exam types)
-- Project duplication feature
-- Search/sort/filter on Projects page
-- Grid vs List view toggle
-- Project-level analytics dashboard
-- Bulk project operations
+**`src/hooks/useAnalyticsData.ts`** -- Add new query hooks:
+- `useProjectAnalytics(projectId)` -- Fetches timer sessions and tasks scoped to goals under a specific project
+- `useGoalAnalytics(goalId)` -- Fetches timer sessions and tasks scoped to a specific goal
+- Both return the same shape as existing analytics (summary cards, score trend, subject performance) but filtered to the entity scope
 
 ---
 
 ## Technical Details: File Changes Summary
 
-**New files (4):**
-- `src/pages/ProjectsPage.tsx`
-- `src/components/projects/ProjectFormDialog.tsx`
-- `src/components/projects/ProjectCard.tsx`
-- `src/components/projects/ArchiveProjectDialog.tsx`
+**New files (6):**
+- `src/pages/ForgotPasswordPage.tsx`
+- `src/pages/ResetPasswordPage.tsx`
+- `src/pages/ProjectDetailPage.tsx`
+- `src/pages/GoalDetailPage.tsx`
+- `src/components/projects/AddGoalToProjectDialog.tsx`
+- `src/components/analytics/ProjectAnalytics.tsx`
+- `src/components/analytics/GoalAnalytics.tsx`
 
-**Modified files (7):**
-- `src/hooks/useProjects.ts` -- cascade archive logic + archive count fetching
-- `src/components/goals/GoalFormDialog.tsx` -- add project_id select
-- `src/components/goals/GoalCard.tsx` -- show project badge
-- `src/pages/Goals.tsx` -- add project filter dropdown
-- `src/components/layout/AppSidebar.tsx` -- add Projects nav item
-- `src/App.tsx` -- add /projects route
-- `sql/seed_demo_data.sql` -- update project names and link goals
+**Modified files (12):**
+- `src/pages/SignupPage.tsx` -- Add username + avatar fields, adaptive email verification check
+- `src/pages/LoginPage.tsx` -- Add "Remember me" checkbox, "Forgot password?" link, better error messages
+- `src/hooks/useAuth.tsx` -- Add remember-me expiry logic (3-day check)
+- `src/lib/supabase.ts` -- No changes needed (Supabase built-in reset works with current client)
+- `src/App.tsx` -- Add routes for forgot-password, reset-password, project detail, goal detail; remove/redirect profile-setup
+- `src/components/settings/ProfileSettings.tsx` -- Add "Change Password" section
+- `src/pages/TimerPage.tsx` -- Read `location.state.taskId` for auto-start; auto-minimize on unmount
+- `src/components/dashboard/TodaysTasks.tsx` -- Pass task ID in navigation state for timer
+- `src/components/tasks/TaskCard.tsx` -- Add "Start Timer" dropdown option
+- `src/components/layout/OfflineIndicator.tsx` -- Replace banner with icon + tooltip
+- `src/components/goals/GoalFormDialog.tsx` -- Fix empty date -> null conversion
+- `src/pages/ProjectsPage.tsx` -- Use `AddGoalToProjectDialog`, make cards navigate to detail pages
+- `src/components/projects/ProjectCard.tsx` -- Make name clickable for navigation
+- `src/components/goals/GoalCard.tsx` -- Make name clickable for navigation
+- `src/components/layout/AppHeader.tsx` -- Update "Edit Profile" to go to Settings
+- `src/hooks/useAnalyticsData.ts` -- Add project/goal-scoped analytics hooks
+
+---
+
+## Edge Cases
+
+1. **Signup with username conflict**: Check username uniqueness before completing signup. If taken, show inline error without losing email/password
+2. **Avatar upload failure during signup**: Username is set first, avatar upload is best-effort. If upload fails, user can set avatar later from Settings
+3. **Remember me expiry**: If session token is expired by Supabase before 3 days, the user is signed out regardless
+4. **Timer auto-start with invalid taskId**: If `location.state.taskId` references a deleted/archived task, show a toast and fall back to the task select dialog
+5. **Empty goal target_date**: Convert `""` to `null` to prevent Postgres type error
+6. **Project/Goal detail page 404**: If the ID in the URL doesn't match any record, show a "Not Found" state with a link back to the listing page
+7. **Offline indicator**: The icon should animate/pulse briefly when transitioning from online to offline to catch user attention
+8. **Add Existing Goals dialog**: Only show unassigned goals (project_id = null). If none exist, show empty state with "All goals are assigned" message
+
+---
+
+## Implementation Order
+
+1. Goal form date bug fix (quick win, Item #11)
+2. Auth improvements (Items #1, #2, #3, #4, #5, #6, #7)
+3. Timer UX (Items #8, #9)
+4. Offline indicator (Item #10)
+5. Add Goal tabbed dialog (Item #12)
+6. Project and Goal detail pages (Items #13, #14)
+7. Per-entity analytics (Item #15)
 
