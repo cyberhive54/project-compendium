@@ -51,13 +51,100 @@ export function useProjects(showArchived = false) {
 
   const archive = useMutation({
     mutationFn: async (id: string) => {
+      const now = new Date().toISOString();
+
+      // 1. Get all non-archived goals under this project
+      const { data: goals } = await supabase
+        .from("goals")
+        .select("goal_id")
+        .eq("project_id", id)
+        .eq("archived", false);
+
+      if (goals?.length) {
+        const goalIds = goals.map((g) => g.goal_id);
+
+        // 2. Get all subjects under these goals
+        const { data: subjects } = await supabase
+          .from("subjects")
+          .select("subject_id")
+          .in("goal_id", goalIds)
+          .eq("archived", false);
+
+        if (subjects?.length) {
+          const subjectIds = subjects.map((s) => s.subject_id);
+
+          // 3. Get chapters under subjects
+          const { data: chapters } = await supabase
+            .from("chapters")
+            .select("chapter_id")
+            .in("subject_id", subjectIds)
+            .eq("archived", false);
+
+          if (chapters?.length) {
+            const chapterIds = chapters.map((c) => c.chapter_id);
+
+            // Archive topics
+            await supabase
+              .from("topics")
+              .update({ archived: true, archived_at: now })
+              .in("chapter_id", chapterIds)
+              .eq("archived", false);
+
+            // Archive chapters
+            await supabase
+              .from("chapters")
+              .update({ archived: true, archived_at: now })
+              .in("chapter_id", chapterIds)
+              .eq("archived", false);
+          }
+
+          // Archive subjects
+          await supabase
+            .from("subjects")
+            .update({ archived: true, archived_at: now })
+            .in("subject_id", subjectIds)
+            .eq("archived", false);
+        }
+
+        // Archive streams
+        await supabase
+          .from("streams")
+          .update({ archived: true, archived_at: now })
+          .in("goal_id", goalIds)
+          .eq("archived", false);
+
+        // Archive tasks
+        await supabase
+          .from("tasks")
+          .update({ archived: true, archived_at: now })
+          .in("goal_id", goalIds)
+          .eq("archived", false);
+
+        // Archive goals
+        await supabase
+          .from("goals")
+          .update({ archived: true, archived_at: now })
+          .in("goal_id", goalIds)
+          .eq("archived", false);
+      }
+
+      // Archive the project itself
       const { error } = await supabase
         .from("projects")
-        .update({ archived: true, archived_at: new Date().toISOString() })
+        .update({ archived: true, archived_at: now })
         .eq("project_id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["projects"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["projects"] });
+      qc.invalidateQueries({ queryKey: ["goals"] });
+      qc.invalidateQueries({ queryKey: ["streams"] });
+      qc.invalidateQueries({ queryKey: ["subjects"] });
+      qc.invalidateQueries({ queryKey: ["chapters"] });
+      qc.invalidateQueries({ queryKey: ["topics"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["project-task-stats"] });
+    },
   });
 
   const unarchive = useMutation({

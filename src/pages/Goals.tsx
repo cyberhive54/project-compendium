@@ -1,8 +1,16 @@
-import { useState } from "react";
-import { Plus, Target, ListTodo } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, Target, ListTodo, FolderKanban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useGoals } from "@/hooks/useGoals";
+import { useProjects } from "@/hooks/useProjects";
 import { useTasks } from "@/hooks/useTasks";
 import { GoalCard } from "@/components/goals/GoalCard";
 import { GoalFormDialog } from "@/components/goals/GoalFormDialog";
@@ -15,14 +23,36 @@ import type { Goal, Task } from "@/types/database";
 
 export default function GoalsPage() {
   const { data: goals = [], isLoading, create, update, archive } = useGoals();
+  const { data: projects = [] } = useProjects();
   const tasksHook = useTasks();
 
+  const [projectFilter, setProjectFilter] = useState("__all__");
   const [createGoalOpen, setCreateGoalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
-  const [archiveTarget, setArchiveTarget] = useState<{ id: string; name: string } | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
-  const [taskPresetGoalId, setTaskPresetGoalId] = useState<string | undefined>();
+  const [taskPresetGoalId, setTaskPresetGoalId] = useState<
+    string | undefined
+  >();
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  const filteredGoals = useMemo(() => {
+    if (projectFilter === "__all__") return goals;
+    if (projectFilter === "__unassigned__")
+      return goals.filter((g) => !g.project_id);
+    return goals.filter((g) => g.project_id === projectFilter);
+  }, [goals, projectFilter]);
+
+  const projectMap = useMemo(() => {
+    const map = new Map<string, { name: string; color: string }>();
+    for (const p of projects) {
+      map.set(p.project_id, { name: p.name, color: p.color });
+    }
+    return map;
+  }, [projects]);
 
   const handleCreateGoal = (values: Record<string, any>) => {
     create.mutate(values as Partial<Goal>, {
@@ -52,7 +82,14 @@ export default function GoalsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Goals & Tasks</h1>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => { setTaskPresetGoalId(undefined); setCreateTaskOpen(true); }}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setTaskPresetGoalId(undefined);
+              setCreateTaskOpen(true);
+            }}
+          >
             <Plus className="h-4 w-4 mr-1" /> Task
           </Button>
           <Button size="sm" onClick={() => setCreateGoalOpen(true)}>
@@ -62,21 +99,39 @@ export default function GoalsPage() {
       </div>
 
       <Tabs defaultValue="goals">
-        <TabsList>
-          <TabsTrigger value="goals" className="gap-1.5">
-            <Target className="h-4 w-4" /> Goals
-          </TabsTrigger>
-          <TabsTrigger value="tasks" className="gap-1.5">
-            <ListTodo className="h-4 w-4" /> Tasks
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <TabsList>
+            <TabsTrigger value="goals" className="gap-1.5">
+              <Target className="h-4 w-4" /> Goals
+            </TabsTrigger>
+            <TabsTrigger value="tasks" className="gap-1.5">
+              <ListTodo className="h-4 w-4" /> Tasks
+            </TabsTrigger>
+          </TabsList>
+
+          <Select value={projectFilter} onValueChange={setProjectFilter}>
+            <SelectTrigger className="w-[180px] h-9">
+              <FolderKanban className="h-3.5 w-3.5 mr-1.5 shrink-0" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">All Projects</SelectItem>
+              <SelectItem value="__unassigned__">Unassigned</SelectItem>
+              {projects.map((p) => (
+                <SelectItem key={p.project_id} value={p.project_id}>
+                  {p.icon} {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         <TabsContent value="goals" className="mt-4 space-y-3">
           {isLoading ? (
             Array.from({ length: 3 }).map((_, i) => (
               <Skeleton key={i} className="h-24 w-full rounded-lg" />
             ))
-          ) : goals.length === 0 ? (
+          ) : filteredGoals.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-lg border bg-card p-12 text-center">
               <Target className="h-12 w-12 text-muted-foreground/50 mb-4" />
               <p className="text-muted-foreground">No goals yet</p>
@@ -88,12 +143,19 @@ export default function GoalsPage() {
               </Button>
             </div>
           ) : (
-            goals.map((goal) => (
+            filteredGoals.map((goal) => (
               <GoalCard
                 key={goal.goal_id}
                 goal={goal}
+                projectInfo={
+                  goal.project_id
+                    ? projectMap.get(goal.project_id)
+                    : undefined
+                }
                 onEdit={setEditingGoal}
-                onArchive={(id) => setArchiveTarget({ id, name: goal.name })}
+                onArchive={(id) =>
+                  setArchiveTarget({ id, name: goal.name })
+                }
                 onAddTask={handleAddTask}
               />
             ))
@@ -106,7 +168,11 @@ export default function GoalsPage() {
       </Tabs>
 
       {/* Dialogs */}
-      <GoalFormDialog open={createGoalOpen} onOpenChange={setCreateGoalOpen} onSubmit={handleCreateGoal} />
+      <GoalFormDialog
+        open={createGoalOpen}
+        onOpenChange={setCreateGoalOpen}
+        onSubmit={handleCreateGoal}
+      />
 
       {editingGoal && (
         <GoalFormDialog
