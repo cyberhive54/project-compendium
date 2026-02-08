@@ -151,8 +151,8 @@ BEGIN
   -- 2. PROJECTS
   -- =========================================================
   INSERT INTO projects (project_id, user_id, name, description, color, icon) VALUES
-    (v_proj_academic, v_uid, 'Academic 2025-26', 'All academic goals for the year', '#10B981', '🎓'),
-    (v_proj_competitive, v_uid, 'Competitive Exams', 'JEE, NEET and other competitive prep', '#8B5CF6', '🏆');
+    (v_proj_academic, v_uid, '12th Board Exams', 'CBSE Class 12 board exam preparation', '#10B981', '📚'),
+    (v_proj_competitive, v_uid, 'JEE Preparation', 'Comprehensive JEE Main + Advanced prep', '#3B82F6', '🎓');
 
   -- =========================================================
   -- 3. GOALS (all 4 types)
@@ -160,7 +160,7 @@ BEGIN
   INSERT INTO goals (goal_id, user_id, project_id, name, description, goal_type, target_date, color, icon, weightage_enabled) VALUES
     (v_goal_jee, v_uid, v_proj_competitive, 'JEE Advanced 2026', 'Joint Entrance Exam preparation', 'competitive', '2026-05-15', '#EF4444', '🏆', TRUE),
     (v_goal_boards, v_uid, v_proj_academic, 'Board Exams 12th', 'CBSE Class 12 Board Exams', 'board', '2026-03-01', '#3B82F6', '📋', TRUE),
-    (v_goal_semester, v_uid, v_proj_academic, 'Semester 3 - CS', 'Computer Science Semester 3', 'semester', '2026-04-30', '#F59E0B', '🎓', FALSE),
+    (v_goal_semester, v_uid, NULL, 'Semester 3 - CS', 'Computer Science Semester 3', 'semester', '2026-04-30', '#F59E0B', '🎓', FALSE),
     (v_goal_custom, v_uid, NULL, 'Learn Piano', 'Self-paced piano learning (no project)', 'custom', NULL, '#EC4899', '🎹', FALSE);
 
   -- =========================================================

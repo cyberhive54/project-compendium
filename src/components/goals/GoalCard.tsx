@@ -21,9 +21,10 @@ interface GoalCardProps {
   onEdit: (goal: Goal) => void;
   onArchive: (goalId: string) => void;
   onAddTask: (goalId: string) => void;
+  projectInfo?: { name: string; color: string };
 }
 
-export function GoalCard({ goal, onEdit, onArchive, onAddTask }: GoalCardProps) {
+export function GoalCard({ goal, onEdit, onArchive, onAddTask, projectInfo }: GoalCardProps) {
   const [expanded, setExpanded] = useState(false);
   const goalType = GOAL_TYPES.find((t) => t.value === goal.goal_type);
 
@@ -45,6 +46,18 @@ export function GoalCard({ goal, onEdit, onArchive, onAddTask }: GoalCardProps) 
               >
                 {goalType?.icon} {goalType?.label}
               </Badge>
+              {projectInfo && (
+                <Badge
+                  variant="outline"
+                  className="text-xs shrink-0"
+                  style={{
+                    borderColor: projectInfo.color,
+                    color: projectInfo.color,
+                  }}
+                >
+                  {projectInfo.name}
+                </Badge>
+              )}
             </div>
             {goal.description && (
               <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1">

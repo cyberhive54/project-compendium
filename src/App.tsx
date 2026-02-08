@@ -14,6 +14,7 @@ import GoalsPage from "./pages/Goals";
 import SettingsPage from "./pages/SettingsPage";
 import TimerPage from "./pages/TimerPage";
 import BadgesPage from "./pages/BadgesPage";
+import ProjectsPage from "./pages/ProjectsPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import ProfileSetupPage from "./pages/ProfileSetupPage";
@@ -53,6 +54,7 @@ const App = () => (
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/calendar" element={<CalendarPage />} />
                 <Route path="/analytics" element={<AnalyticsPage />} />
+                <Route path="/projects" element={<ProjectsPage />} />
                 <Route path="/goals" element={<GoalsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/timer" element={<TimerPage />} />
