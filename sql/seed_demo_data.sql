@@ -140,7 +140,7 @@ BEGIN
   DELETE FROM study_sessions_config WHERE user_id = v_uid;
   DELETE FROM user_task_types WHERE user_id = v_uid;
   DELETE FROM holidays WHERE user_id = v_uid;
-  DELETE FROM badges WHERE user_id = v_uid;
+  DELETE FROM user_badges WHERE user_id = v_uid;
   DELETE FROM backups_metadata WHERE user_id = v_uid;
 
   -- =========================================================
