@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { BookOpen, Loader2, Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import { BookOpen, Loader2, Eye, EyeOff, CheckCircle2, Camera, User } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Card,
   CardContent,
@@ -22,11 +24,20 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 
 const signupSchema = z
   .object({
+    username: z
+      .string()
+      .min(3, "Username must be at least 3 characters")
+      .max(20, "Username must be at most 20 characters")
+      .regex(
+        /^[a-zA-Z0-9_]+$/,
+        "Username can only contain letters, numbers, and underscores"
+      ),
     email: z.string().email("Please enter a valid email address"),
     password: z
       .string()
@@ -49,10 +60,13 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { email: "", password: "", confirmPassword: "" },
+    defaultValues: { username: "", email: "", password: "", confirmPassword: "" },
   });
 
   if (loading) {
@@ -94,20 +108,116 @@ export default function SignupPage() {
     );
   }
 
-  const onSubmit = async (values: SignupFormValues) => {
-    setIsSubmitting(true);
-    const { error } = await signUp(values.email, values.password);
-    setIsSubmitting(false);
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    if (error) {
+    if (file.size > 2 * 1024 * 1024) {
       toast({
         variant: "destructive",
-        title: "Sign up failed",
-        description: error.message,
+        title: "File too large",
+        description: "Profile picture must be under 2MB",
       });
-    } else {
-      setEmailSent(true);
+      return;
     }
+
+    if (!file.type.startsWith("image/")) {
+      toast({
+        variant: "destructive",
+        title: "Invalid file type",
+        description: "Please upload an image file",
+      });
+      return;
+    }
+
+    setAvatarFile(file);
+    setAvatarUrl(URL.createObjectURL(file));
+  };
+
+  const onSubmit = async (values: SignupFormValues) => {
+    setIsSubmitting(true);
+
+    // Check username uniqueness first
+    const { data: existingUser } = await supabase
+      .from("user_profiles")
+      .select("user_id")
+      .eq("username", values.username)
+      .maybeSingle();
+
+    if (existingUser) {
+      form.setError("username", { message: "This username is already taken" });
+      setIsSubmitting(false);
+      return;
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email: values.email,
+      password: values.password,
+      options: {
+        emailRedirectTo: window.location.origin,
+      },
+    });
+
+    if (error) {
+      // Handle duplicate email
+      const msg = error.message.toLowerCase();
+      if (msg.includes("already registered") || msg.includes("already been registered")) {
+        toast({
+          variant: "destructive",
+          title: "Email already registered",
+          description: "This email is already in use. Please sign in or reset your password.",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Sign up failed",
+          description: error.message,
+        });
+      }
+      setIsSubmitting(false);
+      return;
+    }
+
+    // If we have a user, update their profile with username + avatar
+    if (data?.user) {
+      // Update username
+      await supabase
+        .from("user_profiles")
+        .update({ username: values.username })
+        .eq("user_id", data.user.id);
+
+      // Upload avatar if selected
+      if (avatarFile) {
+        const fileExt = avatarFile.name.split(".").pop();
+        const filePath = `${data.user.id}/avatar.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("avatars")
+          .upload(filePath, avatarFile, { upsert: true });
+
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage
+            .from("avatars")
+            .getPublicUrl(filePath);
+
+          await supabase
+            .from("user_profiles")
+            .update({ profile_picture_url: urlData.publicUrl })
+            .eq("user_id", data.user.id);
+        }
+      }
+
+      // Check if email verification is required
+      // If session is returned immediately, no verification needed
+      if (data.session) {
+        // No email verification required — redirect happens via auth state change
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    setIsSubmitting(false);
+    setEmailSent(true);
   };
 
   return (
@@ -124,6 +234,57 @@ export default function SignupPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              {/* Avatar Upload */}
+              <div className="flex flex-col items-center gap-2">
+                <div
+                  className="relative group cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Avatar className="h-20 w-20">
+                    <AvatarImage src={avatarUrl ?? undefined} />
+                    <AvatarFallback className="bg-muted">
+                      <User className="h-8 w-8 text-muted-foreground" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Camera className="h-5 w-5 text-white" />
+                  </div>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Optional · Max 2MB
+                </p>
+              </div>
+
+              {/* Username */}
+              <FormField
+                control={form.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Username</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="your_username"
+                        maxLength={20}
+                        autoComplete="username"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      3–20 characters, letters, numbers, and underscores only
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="email"
@@ -206,7 +367,7 @@ export default function SignupPage() {
             </form>
           </Form>
         </CardContent>
-        <CardFooter className="justify-center">
+        <CardFooter className="flex-col gap-2">
           <p className="text-sm text-muted-foreground">
             Already have an account?{" "}
             <Link to="/login" className="text-primary font-medium hover:underline">

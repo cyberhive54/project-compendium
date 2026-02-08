@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   CheckCircle2,
   Circle,
@@ -9,6 +10,7 @@ import {
   Trash2,
   CalendarDays,
   ArrowRight,
+  Play,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +55,7 @@ export function TaskCard({
   selected,
   onSelect,
 }: TaskCardProps) {
+  const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
   const [postponeOpen, setPostponeOpen] = useState(false);
   const [postponeDate, setPostponeDate] = useState("");
@@ -206,9 +209,20 @@ export function TaskCard({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {!isDone && (
-                <DropdownMenuItem onClick={() => onMarkDone(task.task_id)}>
-                  <CheckCircle2 className="h-4 w-4 mr-2" /> Mark Done
-                </DropdownMenuItem>
+                <>
+                  <DropdownMenuItem onClick={() => onMarkDone(task.task_id)}>
+                    <CheckCircle2 className="h-4 w-4 mr-2" /> Mark Done
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() =>
+                      navigate("/timer", {
+                        state: { taskId: task.task_id, taskName: task.name },
+                      })
+                    }
+                  >
+                    <Play className="h-4 w-4 mr-2" /> Start Timer
+                  </DropdownMenuItem>
+                </>
               )}
               <DropdownMenuItem onClick={() => onEdit(task)}>
                 <Pencil className="h-4 w-4 mr-2" /> Edit

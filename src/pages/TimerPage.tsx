@@ -11,6 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
+import { useLocation } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Timer,
   Play,
@@ -32,14 +35,57 @@ export default function TimerPage() {
     stopTimer,
   } = useTimerStore();
 
+  const { user } = useAuth();
   const { saveSession } = useTimerSessions(taskId ?? undefined);
   const [taskSelectOpen, setTaskSelectOpen] = useState(false);
+  const location = useLocation();
+
+  // Auto-start timer if navigated with taskId in state
+  useEffect(() => {
+    const state = location.state as { taskId?: string; taskName?: string } | null;
+    if (state?.taskId && status === "idle") {
+      // Look up the task name if not provided
+      if (state.taskName) {
+        startTimer(state.taskId, state.taskName, false);
+      } else {
+        // Fetch task name from database
+        supabase
+          .from("tasks")
+          .select("name")
+          .eq("task_id", state.taskId)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data) {
+              startTimer(state.taskId!, data.name, false);
+            } else {
+              toast({
+                title: "Task not found",
+                description: "The selected task could not be found. Please select a task manually.",
+              });
+              setTaskSelectOpen(true);
+            }
+          });
+      }
+      // Clear the location state to prevent re-triggering
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // When navigating to timer page while timer is running, show fullscreen
   useEffect(() => {
     if (status !== "idle") {
       setFullscreen(true);
     }
+  }, []);
+
+  // Auto-minimize when navigating AWAY from timer page
+  useEffect(() => {
+    return () => {
+      const currentStatus = useTimerStore.getState().status;
+      if (currentStatus !== "idle") {
+        useTimerStore.getState().setMinimized(true);
+      }
+    };
   }, []);
 
   const handleStartTimer = (selectedTaskId: string, selectedTaskName: string, pomodoro: boolean) => {

@@ -58,6 +58,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // Check remember-me expiry on load
+    const checkRememberMe = () => {
+      const loginTimestamp = localStorage.getItem("studytracker_login_timestamp");
+      if (loginTimestamp) {
+        const elapsed = Date.now() - parseInt(loginTimestamp, 10);
+        const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
+        if (elapsed > threeDaysMs) {
+          localStorage.removeItem("studytracker_login_timestamp");
+          supabase.auth.signOut();
+          return true; // expired
+        }
+      }
+      return false;
+    };
+
     // Set up auth state listener BEFORE checking session
     const {
       data: { subscription },
@@ -66,6 +81,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(currentSession?.user ?? null);
 
       if (currentSession?.user) {
+        // Check remember-me expiry on auth state change
+        if (checkRememberMe()) {
+          setLoading(false);
+          return;
+        }
         // Use setTimeout to avoid Supabase client deadlock
         setTimeout(() => fetchProfile(currentSession.user.id), 0);
       } else {
@@ -77,6 +97,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Then check for existing session
     supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+      if (existingSession?.user && checkRememberMe()) {
+        setLoading(false);
+        return;
+      }
+
       setSession(existingSession);
       setUser(existingSession?.user ?? null);
 
@@ -110,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    localStorage.removeItem("studytracker_login_timestamp");
     await supabase.auth.signOut();
     setProfile(null);
   };

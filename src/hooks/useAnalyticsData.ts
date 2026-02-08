@@ -339,3 +339,116 @@ function getDateRange(period: TimePeriod): { start: string; end: string } | null
       return null;
   }
 }
+
+// ── Per-Project Analytics ──
+export function useProjectAnalytics(projectId: string | undefined) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["project-analytics", user?.id, projectId],
+    queryFn: async () => {
+      // Get all goal IDs for this project
+      const { data: goals } = await supabase
+        .from("goals")
+        .select("goal_id")
+        .eq("project_id", projectId!)
+        .eq("user_id", user!.id)
+        .eq("archived", false);
+
+      const goalIds = (goals ?? []).map((g) => g.goal_id);
+      if (!goalIds.length) {
+        return { timeStudied: 0, tasksCompleted: 0, totalTasks: 0, avgAccuracy: null };
+      }
+
+      // Tasks
+      const { data: tasks } = await supabase
+        .from("tasks")
+        .select("task_id, status, accuracy_percentage")
+        .eq("user_id", user!.id)
+        .in("goal_id", goalIds)
+        .eq("archived", false);
+
+      const allTasks = tasks ?? [];
+      const completedTasks = allTasks.filter((t) => t.status === "done");
+      const accuracies = completedTasks
+        .map((t) => t.accuracy_percentage)
+        .filter((a): a is number => a !== null);
+      const avgAccuracy =
+        accuracies.length > 0
+          ? Math.round(accuracies.reduce((s, a) => s + a, 0) / accuracies.length)
+          : null;
+
+      // Timer sessions
+      const { data: sessions } = await supabase
+        .from("timer_sessions")
+        .select("duration_seconds, task_id")
+        .eq("user_id", user!.id)
+        .eq("session_type", "focus")
+        .not("end_time", "is", null);
+
+      const taskIdSet = new Set(allTasks.map((t) => t.task_id));
+      const projectSessions = (sessions ?? []).filter((s) => taskIdSet.has(s.task_id));
+      const timeStudied = Math.round(
+        projectSessions.reduce((s, t) => s + (t.duration_seconds ?? 0), 0) / 60
+      );
+
+      return {
+        timeStudied,
+        tasksCompleted: completedTasks.length,
+        totalTasks: allTasks.length,
+        avgAccuracy,
+      };
+    },
+    enabled: !!user && !!projectId,
+  });
+}
+
+// ── Per-Goal Analytics ──
+export function useGoalAnalytics(goalId: string | undefined) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["goal-analytics", user?.id, goalId],
+    queryFn: async () => {
+      // Tasks for this goal
+      const { data: tasks } = await supabase
+        .from("tasks")
+        .select("task_id, status, accuracy_percentage")
+        .eq("user_id", user!.id)
+        .eq("goal_id", goalId!)
+        .eq("archived", false);
+
+      const allTasks = tasks ?? [];
+      const completedTasks = allTasks.filter((t) => t.status === "done");
+      const accuracies = completedTasks
+        .map((t) => t.accuracy_percentage)
+        .filter((a): a is number => a !== null);
+      const avgAccuracy =
+        accuracies.length > 0
+          ? Math.round(accuracies.reduce((s, a) => s + a, 0) / accuracies.length)
+          : null;
+
+      // Timer sessions
+      const { data: sessions } = await supabase
+        .from("timer_sessions")
+        .select("duration_seconds, task_id")
+        .eq("user_id", user!.id)
+        .eq("session_type", "focus")
+        .not("end_time", "is", null);
+
+      const taskIdSet = new Set(allTasks.map((t) => t.task_id));
+      const goalSessions = (sessions ?? []).filter((s) => taskIdSet.has(s.task_id));
+      const timeStudied = Math.round(
+        goalSessions.reduce((s, t) => s + (t.duration_seconds ?? 0), 0) / 60
+      );
+
+      return {
+        timeStudied,
+        tasksCompleted: completedTasks.length,
+        totalTasks: allTasks.length,
+        avgAccuracy,
+      };
+    },
+    enabled: !!user && !!goalId,
+  });
+}
