@@ -9,7 +9,7 @@ import { NavLink as RouterNavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Calendar", url: "/calendar", icon: CalendarDays },
   { title: "Timer", url: "/timer", icon: Timer },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
@@ -24,7 +24,7 @@ export function MobileBottomNav() {
           <RouterNavLink
             key={item.title}
             to={item.url}
-            end={item.url === "/"}
+            end={item.url === "/dashboard"}
             className={({ isActive }) =>
               cn(
                 "flex flex-col items-center justify-center gap-0.5 py-2 px-3 min-w-[56px] min-h-[56px] text-muted-foreground transition-colors",

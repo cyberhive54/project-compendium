@@ -2,8 +2,6 @@ import { useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ArrowLeft,
-  Plus,
   Pencil,
   Archive,
   CalendarDays,
@@ -14,7 +12,7 @@ import {
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { GoalAnalytics } from "@/components/analytics/GoalAnalytics";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,16 +26,13 @@ import {
 } from "@/components/ui/breadcrumb";
 import { useGoals } from "@/hooks/useGoals";
 import { useProjects } from "@/hooks/useProjects";
-import { useTasks } from "@/hooks/useTasks";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { GOAL_TYPES } from "@/types/database";
-import { HierarchyTree } from "@/components/goals/HierarchyTree";
+import { GoalDetailContent } from "@/components/goals/GoalDetailContent";
 import { GoalFormDialog } from "@/components/goals/GoalFormDialog";
 import { ArchiveConfirmDialog } from "@/components/goals/ArchiveConfirmDialog";
-import { TaskFormDialog } from "@/components/tasks/TaskFormDialog";
 import { toast } from "sonner";
-import type { Goal, Task } from "@/types/database";
 
 export default function GoalDetailPage() {
   const { goalId } = useParams<{ goalId: string }>();
@@ -52,7 +47,6 @@ export default function GoalDetailPage() {
   } = useGoals();
 
   const { data: projects = [] } = useProjects();
-  const tasksHook = useTasks();
 
   const goal = useMemo(
     () => allGoals.find((g) => g.goal_id === goalId),
@@ -66,7 +60,7 @@ export default function GoalDetailPage() {
 
   const goalType = goal ? GOAL_TYPES.find((t) => t.value === goal.goal_type) : null;
 
-  // Task stats for this goal
+  // Task stats
   const { data: goalTasks = [] } = useQuery({
     queryKey: ["goal-detail-tasks", goalId],
     queryFn: async () => {
@@ -87,10 +81,8 @@ export default function GoalDetailPage() {
     return { total, done, progress: total > 0 ? Math.round((done / total) * 100) : 0 };
   }, [goalTasks]);
 
-  // Dialog states
   const [editGoalOpen, setEditGoalOpen] = useState(false);
   const [archiveGoalOpen, setArchiveGoalOpen] = useState(false);
-  const [createTaskOpen, setCreateTaskOpen] = useState(false);
 
   if (loadingGoals) {
     return (
@@ -111,7 +103,7 @@ export default function GoalDetailPage() {
           This goal may have been deleted or archived
         </p>
         <Button variant="outline" onClick={() => navigate("/goals")}>
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Goals
+          Back to Goals
         </Button>
       </div>
     );
@@ -152,7 +144,7 @@ export default function GoalDetailPage() {
 
       {/* Header Card */}
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-4">
           <div className="flex items-start gap-3">
             <span className="text-3xl">{goal.icon}</span>
             <div className="flex-1 min-w-0">
@@ -171,10 +163,7 @@ export default function GoalDetailPage() {
                   <Badge
                     variant="outline"
                     className="cursor-pointer"
-                    style={{
-                      borderColor: project.color,
-                      color: project.color,
-                    }}
+                    style={{ borderColor: project.color, color: project.color }}
                     onClick={() => navigate(`/projects/${project.project_id}`)}
                   >
                     {project.icon} {project.name}
@@ -184,8 +173,7 @@ export default function GoalDetailPage() {
               {goal.description && (
                 <p className="text-sm text-muted-foreground mt-1">{goal.description}</p>
               )}
-
-              <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
+              <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground flex-wrap">
                 {goal.target_date && (
                   <span className="flex items-center gap-1">
                     <CalendarDays className="h-4 w-4" />
@@ -201,17 +189,26 @@ export default function GoalDetailPage() {
                   {taskStats.progress}% complete
                 </span>
               </div>
-
               {taskStats.total > 0 && (
                 <Progress value={taskStats.progress} className="h-2 mt-3" />
               )}
             </div>
 
             <div className="flex items-center gap-1 shrink-0">
-              <Button size="sm" variant="ghost" className="gap-1" onClick={() => setEditGoalOpen(true)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="gap-1"
+                onClick={() => setEditGoalOpen(true)}
+              >
                 <Pencil className="h-3.5 w-3.5" /> Edit
               </Button>
-              <Button size="sm" variant="ghost" className="gap-1" onClick={() => setArchiveGoalOpen(true)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="gap-1"
+                onClick={() => setArchiveGoalOpen(true)}
+              >
                 <Archive className="h-3.5 w-3.5" /> Archive
               </Button>
             </div>
@@ -219,22 +216,8 @@ export default function GoalDetailPage() {
         </CardHeader>
       </Card>
 
-      {/* Quick Actions */}
-      <div className="flex items-center gap-2">
-        <Button size="sm" onClick={() => setCreateTaskOpen(true)}>
-          <Plus className="h-4 w-4 mr-1" /> Add Task
-        </Button>
-      </div>
-
-      {/* Full Hierarchy Tree */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Hierarchy</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <HierarchyTree goalId={goal.goal_id} />
-        </CardContent>
-      </Card>
+      {/* Flat Grid Content */}
+      <GoalDetailContent goalId={goal.goal_id} />
 
       {/* Analytics */}
       <div className="space-y-3">
@@ -273,18 +256,6 @@ export default function GoalDetailPage() {
             },
           });
           setArchiveGoalOpen(false);
-        }}
-      />
-
-      <TaskFormDialog
-        open={createTaskOpen}
-        onOpenChange={setCreateTaskOpen}
-        presetGoalId={goalId}
-        onSubmit={(values) => {
-          tasksHook.create.mutate(values as Partial<Task>, {
-            onSuccess: () => toast.success("Task created!"),
-            onError: (e: any) => toast.error(e.message),
-          });
         }}
       />
     </div>
