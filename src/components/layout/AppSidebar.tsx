@@ -9,6 +9,7 @@ import {
   Umbrella,
   ClipboardList,
   BookOpen,
+  Timer,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -29,6 +30,7 @@ const navItems = [
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Projects", url: "/projects", icon: FolderKanban },
   { title: "Goals", url: "/goals", icon: Target },
+  { title: "Timer", url: "/timer", icon: Timer },
   { title: "Journal", url: "/journal", icon: BookOpen },
   { title: "Holidays", url: "/holidays", icon: Umbrella },
   { title: "Badges", url: "/badges", icon: Trophy },
