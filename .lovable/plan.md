@@ -1,446 +1,397 @@
-# StudyTracker — Complete MVP Implementation Plan (Revised)
 
-A gamified study management platform for students preparing for board exams, competitive exams, and college semesters. Built with React + Vite + TypeScript + Tailwind + Shadcn/ui, connected to an external Supabase project.
 
----
+# Edit 03 -- Major Enhancements Plan
 
-## Phase 1: Foundation & Authentication
-
-_Goal: Project setup, design system, auth flows, and full database schema_
-
-### Stage 1.1 — Design System & Layout Shell
-
-- Apply StudyTracker color palette (blue primary, success/error/warning tokens)
-- Inter font, dark/light mode toggle with persistent preference
-- App shell layout: collapsible sidebar (Dashboard, Calendar, Analytics, Goals, Settings) + top header bar
-- Mobile: hamburger menu + fixed bottom navigation bar (Dashboard, Calendar, Timer, Analytics, Profile)
-- Z-index hierarchy: Modals z-50, Floating Timer z-45, Bottom Nav z-40, Sidebar z-30
-- Minimum touch targets: 44×44px (56×56px for bottom nav)
-
-### Stage 1.2 — Database Schema (SQL Migration Files)
-
-Generate numbered SQL files for manual execution in Supabase:
-
-- `user_profiles` (XP, streak, settings, pomodoro config, backup_encryption_hash)
-- `projects`, `goals`, `streams`, `subjects`, `chapters`, `topics` (hierarchy tables with weightage)
-- `tasks` (with exam fields, auto-calculated columns, priority 1–9999 higher=higher, preferred_session_id FK)
-- `subtasks`
-- `timer_sessions`
-- `holidays`
-- `user_task_types`
-- `badges` (pre-seeded with 7+ default badges, JSONB unlock conditions, tiers)
-- `user_badges`
-- `study_sessions_config` (name, start/end time with overnight support, days_of_week, color)
-- `backups_metadata`
-- RLS policies for all tables (user can only access own data)
-- Database triggers: weightage validation (±0.01% tolerance), timestamp auto-update, profile auto-creation on signup
-- Indexes on all frequently queried columns
-
-### Stage 1.3 — Authentication
-
-- Sign up (email/password with Zod validation)
-- Login with "Remember Me" (7-day sessions)
-- Email verification flow via Supabase Auth
-- Protected routes (redirect to login if unauthenticated)
-- Username setup (unique, max 20 chars) + optional profile picture (Supabase Storage)
-- Backup encryption hash auto-generated on user creation
-- Logout functionality
-
-#### ✅ Phase 1 Checklist
-
-- [ ] Light/dark mode toggle works and persists
-- [ ] Sidebar navigation renders with correct icons and labels
-- [ ] Mobile hamburger menu opens/closes correctly
-- [ ] Mobile bottom nav shows on screens <768px, hides on desktop
-- [ ] All SQL tables created successfully in Supabase
-- [ ] RLS policies prevent cross-user data access
-- [ ] Sign up with email/password works
-- [ ] Email verification link works
-- [ ] Login/logout works
-- [ ] Protected routes redirect unauthenticated users
-- [ ] Profile picture upload works
-- [ ] Username is unique and validated (max 20 chars)
-- [ ] Study sessions config table created
-- [ ] Badges table created and seeded with default badges
-- [ ] Backup encryption hash generated on user creation
-- [ ] Priority number validation (1–9999, no decimals/negatives/e notation)
+This plan covers 39 enhancement items from `enhancements.txt`, broken down into **14 main features** with lettered sub-features. Each main feature is grouped by domain. The plan document will be created at `docs/edit-03-major-plan.md`.
 
 ---
 
-## Phase 2: Hierarchy System & Task Management
+## Feature 1: Storage and Profile Picture Fix
 
-_Goal: Build the 7-level organizational hierarchy and full task CRUD_
+**Problem:** The avatars storage bucket SQL exists (`sql/019_create_storage_bucket.sql`) but was never actually created in Supabase.
 
-### Stage 2.1 — Hierarchy CRUD (Projects → Topics)
+a. Run the storage bucket SQL in Supabase to create the `avatars` bucket with proper RLS policies
+b. Verify upload/download works from `SignupPage.tsx` and `ProfileSettings.tsx`
 
-- Projects: create, edit, archive (optional container)
-- Goals: create, edit, archive (mandatory, with type: board/competitive/semester/custom)
-- Streams, Subjects, Chapters, Topics: CRUD with parent-child relationships
-- Weightage system:
-  - Children must total 100% ±0.01% (floating-point tolerance)
-  - Database trigger validates on INSERT/UPDATE (server-side enforcement)
-  - Frontend shows real-time running total as user edits
-  - "Auto-Balance" button distributes remaining % equally among siblings
-  - Visual feedback: red text if total ≠ 100%, green if valid
-- Color assignment for subjects (auto-assigned from palette)
-- Cascade archive: archiving parent archives all children (with warning dialog)
-- Cannot delete items with children (must archive first)
-
-### Stage 2.2 — Task Management
-
-- Task creation modal with all fields: name, goal, subject, chapter, topic, type, priority, dates, estimated duration
-- Priority system: 1–9999, higher number = higher priority
-  - Default: 1000 (medium)
-  - Quick select buttons: Low (1000), Medium (2500), High (5000), Critical (7500)
-- Optional: tag task with preferred study session (dropdown of user's sessions)
-- Visual indicator if task is scheduled outside its preferred session time
-- Task list views (filter by goal, subject, date, status)
-- Task status flow: scheduled → pending → in_progress → done / postponed
-- Postponement: forward-only date picker, tracks original date
-- Sub-tasks as checkboxes within tasks
-- Custom task types (default: notes, lecture, revision, practice, test, mocktest, exam)
-- Bulk actions: multi-select, bulk postpone, bulk archive
-
-### Stage 2.3 — Exam-Specific Task Fields
-
-- Conditional exam fields for test/mocktest/exam task types
-- Fields: total questions, attempted, correct, wrong, marks/question, negative marking, time taken
-- Auto-calculations: skipped questions, total marks, marks obtained, accuracy %, speed (Q/min)
-- Real-time validation (correct + wrong ≤ attempted ≤ total)
-
-#### ✅ Phase 2 Checklist
-
-- [ ] Can create/edit/archive projects
-- [ ] Can create/edit/archive goals with type selection
-- [ ] Streams/Subjects/Chapters/Topics CRUD works
-- [ ] Weightage totals validated to 100% (±0.01% tolerance)
-- [ ] Auto-balance distributes weightage evenly among siblings
-- [ ] Cascade archive warns and archives all children
-- [ ] Cannot delete items with children (must archive first)
-- [ ] Task creation modal shows all required fields
-- [ ] Priority defaults to 1000, quick select buttons work
-- [ ] Tasks can be tagged with preferred study session
-- [ ] Warning appears if task scheduled outside session time
-- [ ] Tasks filter by goal, subject, date, status
-- [ ] Task status transitions work correctly
-- [ ] Postponement only allows future dates
-- [ ] Sub-task checkboxes work
-- [ ] Priority sorting works (higher number = higher priority)
-- [ ] Custom task types can be added/edited
-- [ ] Exam fields appear only for test/mocktest/exam types
-- [ ] Exam auto-calculations are correct
-- [ ] Exam validation prevents impossible values (correct > attempted)
+**SQL required:** Execute `sql/019_create_storage_bucket.sql` manually in Supabase SQL editor.
 
 ---
 
-## Phase 3: Dashboard
+## Feature 2: Modal Spacing Fix
 
-_Goal: Central hub showing daily overview, stats, active sessions, and goals_
+**Problem:** All modals/dialogs sit too close to top and bottom edges.
 
-### Stage 3.1 — Dashboard Layout
+a. Update the global `DialogContent` component (`src/components/ui/dialog.tsx`) to add vertical margin/padding -- add `my-4` or `py-4` to ensure breathing room at top and bottom edges
+b. This single change applies to all dialogs app-wide (GoalFormDialog, TaskFormDialog, ArchiveConfirmDialog, HierarchyItemForm, AddGoalToProjectDialog, etc.)
 
-- Welcome banner with username, level, and streak count
-- Quick stats cards (4): Time studied today, Tasks done, Current streak, Adherence %
-- Today's task list widget with status badges and quick actions (start timer, mark done, postpone)
-- Active goals widget with progress bars
-
-### Stage 3.2 — Data Aggregation
-
-- Real-time stats calculations from tasks and timer sessions
-- Recent activity feed (last 10 actions)
-- Upcoming tasks (next 7 days)
-- Empty states with helpful CTAs ("Create your first goal!")
-- Skeleton loading states
-
-### Stage 3.3 — Active Study Session Indicator
-
-- Detect if current time falls within any active study session
-- Show badge: "🌙 Night Study Session Active" or "☀️ Morning Focus Active"
-- Display session-specific stats: "3/5 night session tasks completed this week"
-- Quick link to "View session tasks"
-
-#### ✅ Phase 3 Checklist
-
-- [ ] Dashboard shows correct username, level, streak
-- [ ] Quick stats cards show accurate numbers
-- [ ] Today's tasks list shows correct tasks for today
-- [ ] Task quick actions work from dashboard (done, postpone)
-- [ ] Active goals show correct progress percentages
-- [ ] Empty states display when no data exists
-- [ ] Skeleton loaders appear while data loads
-- [ ] Stats update in real-time when tasks are completed
-- [ ] Active study session indicator shows if current time matches config
-- [ ] Session-specific quick stats display ("3/5 night tasks done")
+**Files:** `src/components/ui/dialog.tsx`
 
 ---
 
-## Phase 4: Timer & Pomodoro System
+## Feature 3: Backup and Restore Enhancement
 
-_Goal: Full-featured study timer with Pomodoro mode and midnight handling_
+**Problem:** Restore function is broken, needs loader states, feedback, and modal-based UX. Must include all new fields.
 
-### Stage 4.1 — Timer Core
+a. **Move restore to a modal:** Replace the inline file-upload restore with a proper `Dialog` that shows: file selection, passphrase input, progress steps, and results summary
+b. **Add loading states:** Show a multi-step progress indicator during restore (Decrypting -> Validating -> Restoring table X of Y -> Complete)
+c. **Add proper feedback:** Show per-table success/failure counts, total restored records, and any errors in a summary card after completion
+d. **Update table list:** Add missing tables to backup/restore: `subtasks`, `study_sessions_config`, `user_badges`, `backups_metadata`, and any new tables (journals, feature_requests, etc.)
+e. **Add backup metadata:** Record backup timestamp, version, and table counts in the exported file for validation before restore
 
-- Start/stop/pause timer linked to a specific task
-- Single active timer enforced globally (starting new timer stops current)
-- Timer persists across page navigation (state in Zustand + localStorage)
-- Timer sessions saved to database on stop
-- Minimum 60-second session (shorter sessions discarded)
-- Maximum 12-hour auto-pause with warning
-- Multiple sessions per task allowed
-- **Midnight session splitting**: if timer runs past 12:00 AM, auto-split into two records — each linked to the same task, each counted on its respective date
-
-### Stage 4.2 — Timer UI
-
-- Fullscreen focus mode: large timer display, task name, pause/stop buttons, quick actions (+5 min, finish early)
-- Floating minimized timer: compact draggable widget (bottom-right, z-45), persists across pages
-- Timer session history for each task
-- Browser close detection with resume prompt on return
-
-### Stage 4.3 — Pomodoro Mode
-
-- Customizable Pomodoro settings: focus duration (5–120 min), short break (1–30 min), long break (5–60 min), cycles before long break
-- Pomodoro cycle indicator (Session X of Y)
-- Auto-start break / auto-start focus options
-- Break countdown timer
-- Browser notifications for session/break completion
-
-#### ✅ Phase 4 Checklist
-
-- [ ] Timer starts and displays HH:MM:SS correctly
-- [ ] Only one timer can run at a time
-- [ ] Timer persists when navigating between pages
-- [ ] Timer state survives page refresh (localStorage)
-- [ ] Pause/resume works correctly
-- [ ] Sessions < 60 seconds are discarded
-- [ ] Timer auto-pauses after 12 hours
-- [ ] Fullscreen focus mode displays correctly
-- [ ] Floating minimized timer appears and is draggable
-- [ ] Floating timer z-index is above bottom nav
-- [ ] Clicking floating timer expands to fullscreen
-- [ ] Timer session is saved to database on stop
-- [ ] Multiple sessions per task are recorded
-- [ ] Timer session splits correctly at midnight (two records created)
-- [ ] Both midnight-split sessions link to same task
-- [ ] Analytics count each split session on correct date
-- [ ] Pomodoro mode cycles through focus → short break → focus → ... → long break
-- [ ] Pomodoro settings are customizable per user
-- [ ] Browser notifications fire on session/break completion
-- [ ] Resume prompt appears after browser close/reopen
+**Files:** `src/components/settings/DataManagement.tsx` (major rewrite), new `src/components/settings/RestoreBackupDialog.tsx`
 
 ---
 
-## Phase 5: Gamification System
+## Feature 4: Holidays Page with Partial Holidays
 
-_Goal: XP, levels, streaks, badges, and holidays to motivate study habits_
+**Problem:** Holidays are currently embedded in the Badges page. Need a dedicated page with CRUD, partial holidays, search, and sort.
 
-### Stage 5.1 — XP & Levels
+a. **New page `/holidays`:** Move holiday management from `BadgesPage.tsx` to a dedicated `src/pages/HolidaysPage.tsx`
+b. **Full CRUD:** Add, edit, delete holidays with proper form dialog
+c. **Partial holidays feature:** Add a `study_percentage` field (0-100) to holidays table. A partial holiday means the user plans to study a fraction of the normal day (e.g., 50%). Streak calculation considers partial holidays differently -- if `study_percentage > 0`, user needs to complete that percentage of planned study to maintain streak
+d. **Search:** Filter holidays by date range, type, or reason text
+e. **Sort by:** Date (asc/desc), type, creation date
+f. **Update sidebar & mobile nav** to include Holidays link
 
-- XP calculation: baseXP (by task type) + duration bonus + difficulty multiplier + streak bonus + exam accuracy bonus
-- XP awarded on task completion and timer session save
-- Level formula: floor(sqrt(totalXP / 100)) + 1
-- Level-up celebration animation (confetti)
-- XP breakdown shown in toast notifications
+**SQL required:**
+```sql
+ALTER TABLE holidays ADD COLUMN study_percentage INTEGER DEFAULT 0 CHECK (study_percentage >= 0 AND study_percentage <= 100);
+ALTER TABLE holidays ADD COLUMN is_partial BOOLEAN GENERATED ALWAYS AS (study_percentage > 0) STORED;
+```
 
-### Stage 5.2 — Streaks
-
-- Daily streak tracking: streak maintained if ANY condition is met (configurable):
-  - Study ≥ X minutes (default: 30 min) OR
-  - Complete ≥ Y tasks (default: 1 task) OR
-  - Complete all scheduled tasks for the day
-- User can configure: min_minutes, min_tasks, require_all_tasks, mode (any/all)
-- Current streak and longest streak display
-- Streak milestone celebrations (7, 30, 100, 365 days)
-- Holiday freeze: marking a day as holiday preserves streak
-- Retroactive holiday marking (up to 7 days back) recalculates streak
-
-### Stage 5.3 — Badges & Holidays
-
-- Badge system with 6 categories: Streak, Time, Tasks, Exams, Subject, Milestones
-- Badges defined in `badges` table with JSONB unlock conditions and tiers (bronze/silver/gold/platinum)
-- Badge unlock notifications with celebration animation
-- Badge gallery page showing earned and locked badges with progress toward next unlock
-- Holiday management: create, view, delete holidays with custom types
-- Calendar visual indicator for holidays
-
-#### ✅ Phase 5 Checklist
-
-- [ ] XP is awarded correctly on task completion
-- [ ] XP breakdown shows base + bonus components
-- [ ] Level displays correctly based on XP formula
-- [ ] Level-up triggers celebration animation
-- [ ] Streak increments daily when ANY condition is met (by default)
-- [ ] Streak conditions are configurable (min_minutes, min_tasks, mode)
-- [ ] Streak resets when a day is missed (no holiday, no conditions met)
-- [ ] Holiday freeze maintains streak
-- [ ] Retroactive holidays (up to 7 days) recalculate streak
-- [ ] Default badges unlock at correct thresholds
-- [ ] Badge notification appears on unlock
-- [ ] Badge gallery shows earned vs locked badges with progress
-- [ ] Holidays appear on calendar with distinct styling
+**Files:** New `src/pages/HolidaysPage.tsx`, update `src/hooks/useHolidays.ts`, update `sql/013_create_holidays.sql`, update sidebar/nav, update `src/lib/gamificationService.ts` (streak logic)
 
 ---
 
-## Phase 6: Calendar & Scheduling
+## Feature 5: Admin System
 
-_Goal: Multi-view calendar with task scheduling, session blocks, and adherence tracking_
+**Problem:** No admin panel exists. Need admin auth, badge management, and multi-level badge system.
 
-### Stage 6.1 — Calendar Views
+a. **Admin auth at `/admin/auth`:** Separate login page for admins. Admin users are identified by an `is_admin` flag in `user_profiles` or a separate `admin_users` table. Admin login uses the same Supabase auth but checks the admin flag post-login
+b. **Admin layout at `/admin`:** Protected by admin auth check. Sidebar with: Dashboard, Badges, (future: Users, Reports)
+c. **Admin badge management at `/admin/badges`:** Full CRUD for badges. Admin can create, edit, delete badges. Each badge has: name, description, icon, category, tier, XP reward, and unlock conditions (JSONB)
+d. **Multi-level badge system:** Replace the flat badge structure with levels per badge. A badge can have 2-5 levels, each with increasing unlock conditions. Example: "Top Scorer" -- Level 1 (80% once), Level 2 (90% once), Level 3 (95% once), Level 4 (90% x3 times), Level 5 (95% x3 times)
+e. **Default badges:** Seed existing badges as defaults that cannot be deleted but can be edited by admin
+f. **Update badge checking engine:** `src/lib/gamificationService.ts` must evaluate multi-level conditions (threshold + count requirements)
+g. **Update user-facing badge display:** `BadgesPage.tsx` and `BadgeCard.tsx` show level indicators (Level 1/5, progress to next level)
 
-- Month view: grid with task counts, time studied, subject color dots per day
-- Week view: 7-column layout with time slots
-- Day view: single column with hourly breakdown
-- Agenda view: chronological list grouped by date
-- Today button to jump to current date
+**SQL required:**
+```sql
+-- New badges schema with levels
+ALTER TABLE badges ADD COLUMN is_default BOOLEAN DEFAULT FALSE;
+ALTER TABLE badges ADD COLUMN levels JSONB DEFAULT '[]';
+-- levels example: [{"level": 1, "threshold": 80, "count": 1}, {"level": 2, "threshold": 90, "count": 1}, ...]
 
-### Stage 6.2 — Task List Modal & Scheduling
+-- Admin flag
+ALTER TABLE user_profiles ADD COLUMN is_admin BOOLEAN DEFAULT FALSE;
 
-- Click any date to open task list modal showing: done, pending, and postponed tasks
-- Quick actions within modal (start timer, mark done, postpone)
-- Add task to specific date directly from calendar
-- Time slot assignment (morning/afternoon/evening/custom)
-- Planned vs actual adherence: (completed on time / total scheduled) × 100%
-- Weekly adherence report with day-by-day breakdown
+-- user_badges tracks which level was achieved
+ALTER TABLE user_badges ADD COLUMN badge_level INTEGER DEFAULT 1;
+```
 
-### Stage 6.3 — Session-Based Scheduling & Visualization
+**New files:** `src/pages/admin/AdminAuth.tsx`, `src/pages/admin/AdminLayout.tsx`, `src/pages/admin/AdminDashboard.tsx`, `src/pages/admin/AdminBadges.tsx`, `src/components/admin/BadgeFormDialog.tsx`, `src/components/admin/BadgeLevelEditor.tsx`, `src/hooks/useAdminAuth.ts`
 
-- Visual study session blocks on calendar (background shading for configured time ranges)
-- Color-code sessions (different color per session type)
-- Tasks can be tagged with preferred session when creating/editing
-- Filter calendar by session ("Show only Night Study tasks")
-- Session adherence: "You completed 8/10 tasks scheduled for night sessions"
-- Warning if task is scheduled outside any study session
-- Holidays display with distinct styling (light blue + icon)
-
-#### ✅ Phase 6 Checklist
-
-- [ ] Month view shows correct task counts and time per day
-- [ ] Subject color dots appear on calendar days
-- [ ] Week view shows tasks in time slots
-- [ ] Day view shows hourly breakdown
-- [ ] Agenda view lists upcoming tasks chronologically
-- [ ] Clicking a date opens task list modal
-- [ ] Modal shows tasks grouped by status (done, pending, postponed)
-- [ ] Quick actions work from calendar modal
-- [ ] Tasks can be added to specific dates from calendar
-- [ ] Study session blocks display on calendar (shaded time ranges)
-- [ ] Tasks can be tagged with preferred session
-- [ ] Session adherence percentage calculates correctly
-- [ ] Warning shows if task scheduled outside study sessions
-- [ ] Holidays display with distinct styling (light blue + icon)
-- [ ] Adherence percentage calculates correctly
-- [ ] Weekly adherence summary shows day-by-day data
+**Modified files:** `src/App.tsx` (admin routes), `src/lib/gamificationService.ts`, `src/pages/BadgesPage.tsx`, `src/components/gamification/BadgeCard.tsx`, `sql/015_create_badges.sql`
 
 ---
 
-## Phase 7: Analytics, Data Management, Background Jobs & Polish
+## Feature 6: Dedicated Tasks Page and Task Detail Page
 
-_Goal: Charts, backup/restore, offline sync, automation, testing, and final polish_
+**Problem:** Tasks are embedded in the Goals page tab. Need a standalone tasks page with advanced filtering and a task detail page.
 
-### Stage 7.1 — Analytics Dashboard
+a. **Tasks page at `/tasks`:** Standalone page with:
+   - Search bar (search by task name)
+   - Pagination (20 tasks per page)
+   - Sort by: priority, date, name, status, created date
+   - Filters: project, goal, stream, subject, chapter, topic, status, date range
+   - Special filter: task type -- selecting a task type shows sub-filters specific to that type (e.g., exam types show accuracy range filter, score range, etc.)
+b. **Task detail page at `/tasks/:taskId`:** Shows:
+   - Full parent hierarchy breadcrumb (Project > Goal > Stream > Subject > Chapter > Topic)
+   - Task details card (name, description, type, priority, status, dates)
+   - Timer sessions associated with this task (from `timer_sessions` table)
+   - Action buttons: change status, edit, delete, postpone, start timer (direct or pomodoro options)
+   - Exam results section (if exam type) with marks, accuracy, time analysis
+c. **Task status change from detail page:** Status dropdown with transitions (scheduled -> pending -> in_progress -> done)
+d. **Start timer from detail page:** Two buttons -- "Focus Timer" and "Pomodoro" -- both navigate to `/timer` with `taskId` in state
 
-- Summary cards: time studied, tasks completed, average accuracy, XP earned (with time period filter: week/month/all-time)
-- Score trend line chart (exam scores over time)
-- Subject performance bar chart (time spent or progress %)
-- Speed vs accuracy scatter plot (for exams)
-- Time distribution pie/donut chart (by subject/goal/task type)
-- Study heatmap (GitHub-style contribution calendar)
-- Streak visualization line chart
-- Weekly/monthly summary cards (exportable as social media images)
-- **Session Performance Chart** (bar chart): average time studied per session
-- **Session Consistency Heatmap**: rows = sessions, columns = days of week, color = frequency
-- **Session Task Completion** (pie chart): tasks completed by session type
-- **Session Insights**: natural language insights about best-performing sessions
-
-### Stage 7.2 — Data Management & Settings
-
-- Encrypted backup:
-  - User enters passphrase (min 8 chars)
-  - Key derivation: PBKDF2(encryption_hash + passphrase, salt, 100k iterations, SHA-256)
-  - Algorithm: AES-256-CBC
-  - Download encrypted JSON
-- Restore from backup: upload JSON → enter passphrase → decrypt → merge (not replace)
-- Archive vs permanent delete (double confirmation for permanent delete)
-- Settings page: theme, Pomodoro config, streak conditions (min_minutes, min_tasks, mode), custom task types
-- Study Sessions management: create/edit/delete sessions (name, start/end time, days of week, active toggle, color)
-  - Default session suggestions on first setup
-- Profile editing (username, profile picture)
-
-### Stage 7.3 — Offline Indicators & Polish
-
-- Online/offline status indicator in UI
-- Offline queue in localStorage:
-  - FIFO processing, max 3 retries per operation
-  - Exponential backoff: 1s, 2s, 4s
-  - Conflict resolution: last-write-wins (exception: timer sessions always merge/append)
-  - On 3rd failure: mark as permanently failed, notify user
-- Sync status indicators on tasks
-- Responsive design refinements (mobile, tablet, desktop)
-- Animation polish (page transitions, list stagger, progress bar animations)
-- Accessibility audit (keyboard navigation, ARIA labels, contrast ratios)
-- Error handling and edge cases (PRD edge cases E1–E11)
-- Loading states, empty states, and error states for all pages
-
-### Stage 7.4 — Background Jobs / Automation (Client-Side)
-
-- On login/app open:
-  - Transition scheduled tasks (scheduled_date ≤ today) to 'pending' status
-  - Update streak (check if yesterday was maintained or broken)
-- Midnight detection via setInterval (check every minute):
-  - Transition today's scheduled tasks to 'pending'
-  - Split any active timer session at midnight boundary
-- State persisted via localStorage to avoid duplicate processing
-
-### Stage 7.5 — Testing
-
-- Unit tests (Vitest, targeting 70%+ coverage):
-  - XP calculation, streak logic, weightage validation, timer midnight split
-- Integration tests for critical flows:
-  - Auth: Signup → Verify → Login → Logout
-  - Hierarchy: Create goal → Create subject → Verify weightage
-  - Tasks: Create → Timer → Stop → Complete
-- E2E tests (Playwright) for user journeys:
-  - New user onboarding flow
-  - Study session workflow
-  - Offline sync
-
-#### ✅ Phase 7 Checklist
-
-- [ ] All chart types render with correct data (including 3 session charts)
-- [ ] Time period filter works (week, month, all-time)
-- [ ] Charts update when new data is added
-- [ ] Session productivity charts render correctly
-- [ ] Session consistency heatmap shows day-of-week patterns
-- [ ] Social media summary card generates correctly
-- [ ] Backup creates encrypted JSON file (PBKDF2 + AES-256-CBC)
-- [ ] Restore decrypts and merges data correctly
-- [ ] Archive hides items from UI but preserves data
-- [ ] Permanent delete requires double confirmation
-- [ ] Settings save and apply correctly (theme, Pomodoro, streak conditions, sessions)
-- [ ] Study session CRUD works in settings
-- [ ] Offline indicator shows when disconnected
-- [ ] Offline queue processes in FIFO order with max 3 retries
-- [ ] Changes made offline sync when back online
-- [ ] Midnight detection triggers task status transitions
-- [ ] App works on mobile (responsive layout)
-- [ ] Mobile bottom nav displays only on screens <768px
-- [ ] Floating timer z-index is above bottom nav
-- [ ] Keyboard navigation works for all interactive elements
-- [ ] All pages have loading, empty, and error states
-- [ ] Single timer enforcement works across tabs
-- [ ] Timer sessions split at midnight correctly
-- [ ] Unit tests pass (70%+ coverage)
-- [ ] E2E tests pass for critical flows
+**New files:** `src/pages/TasksPage.tsx`, `src/pages/TaskDetailPage.tsx`
+**Modified files:** `src/App.tsx` (routes), sidebar/nav
 
 ---
 
-## Technical Architecture
+## Feature 7: Task Creation and Completion Enhancements
 
-- **Frontend**: React 18 + Vite + TypeScript + Tailwind CSS + Shadcn/ui
-- **Routing**: React Router v6
-- **State**: Zustand (timer, offline queue, UI preferences) + React Query (all Supabase data with optimistic updates)
-- **Forms**: React Hook Form + Zod
-- **Charts**: Recharts
-- **Database**: External Supabase — SQL migration files provided numbered (e.g., `001_create_user_profiles.sql`) for manual execution
-- **Auth**: Supabase Auth (email/password)
-- **Storage**: Supabase Storage (profile pictures)
-- **Testing**: Vitest (unit) + Playwright (E2E)
+**Problem:** Exam fields shown during task creation instead of completion. Need session-based task creation and task-type-specific completion modals.
+
+a. **Move exam fields to completion:** Remove exam fields (`ExamFields` component) from `TaskFormDialog`. Instead, show them in a "Mark Complete" dialog that appears when marking a task as done
+b. **Task completion modal per type:** When marking any task complete, a modal appears with fields based on task type:
+   - **Lecture/Notes/Revision:** If no timer session was used: start time and duration fields
+   - **Test/Exam/Question Practice/Mock Test:** Same as above plus: analysis toggle. If yes: total questions, attempted, correct (wrong and skipped auto-calculated), marks/question, negative marking, time taken. Marks, percentage, accuracy are auto-calculated and saved
+c. **Session inheritance in task creation:** Add a dropdown in `TaskFormDialog` to optionally select an existing study session. When selected, the session's start/end times are inherited as the task's scheduled time and duration
+d. **Custom task types in settings:** Allow users to create/edit/delete custom task types in `SettingsPage.tsx` (already partially exists in `StudySessionsSettings`). Each custom type specifies whether it's "exam-like" (needs analysis fields on completion) or "simple" (just time tracking)
+
+**New files:** `src/components/tasks/TaskCompletionDialog.tsx`
+**Modified files:** `src/components/tasks/TaskFormDialog.tsx`, `src/components/tasks/ExamFields.tsx`, `src/hooks/useTasks.ts` (markDone flow), `src/components/settings/StudySessionsSettings.tsx`
+
+---
+
+## Feature 8: Goal Page and Goal Detail Page Enhancements
+
+**Problem:** Goal page needs more filters. Goal detail page needs hierarchy-scoped task display and inline edit/delete for hierarchy items.
+
+a. **Goal page filters:** Add search input, project filter (already exists), date range filter (filter goals by target_date range), and start/end date fields for goals
+b. **Goal schema update:** Add `start_date` and `end_date` to goals table (max constrained to parent project's start/end date if project has one)
+c. **Project schema update:** Add `start_date` and `end_date` to projects table
+d. **Scoped task display on goal detail:** Instead of showing all tasks by default, only show tasks for the selected topic (or chapter if no topic selected, etc.). Tasks cascade with hierarchy selection: select a stream -> subjects shown -> select subject -> chapters shown -> select chapter -> topics shown -> select topic -> tasks for that topic shown
+e. **Inline edit/delete on hierarchy items:** On right-click, long-press, or double-click on any stream/subject/chapter/topic card, show a mini context menu with Edit and Delete options. Delete shows a confirmation dialog with count of child items that will be deleted
+f. **Task card navigation:** Clicking any task in goal detail redirects to `/tasks/:taskId`
+
+**SQL required:**
+```sql
+ALTER TABLE goals ADD COLUMN start_date DATE;
+ALTER TABLE projects ADD COLUMN start_date DATE;
+ALTER TABLE projects ADD COLUMN end_date DATE;
+```
+
+**Modified files:** `src/pages/Goals.tsx`, `src/pages/GoalDetailPage.tsx`, `src/components/goals/GoalDetailContent.tsx`, `src/components/goals/GoalFormDialog.tsx`, `src/types/database.ts`, `sql/003_create_projects.sql`, `sql/004_create_goals.sql`
+
+---
+
+## Feature 9: Journal System
+
+**Problem:** No journaling feature exists.
+
+a. **Journal page at `/journal`:** A page for daily study journaling
+b. **Journal entry form:** Large text area to write about the day's study experience. One entry per date (enforced by unique constraint on `user_id + date`)
+c. **Journal history:** List of past entries with date headers, filterable by date range
+d. **Journal schema:**
+
+```sql
+CREATE TABLE journals (
+  journal_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, date)
+);
+```
+
+**New files:** `src/pages/JournalPage.tsx`, `src/hooks/useJournals.ts`
+**Modified files:** `src/App.tsx`, sidebar/nav
+
+---
+
+## Feature 10: Timer and Pomodoro Enhancements
+
+**Problem:** Task list ordering is random. Need pause time tracking, fullscreen distraction-free mode, and pomodoro session integration.
+
+a. **Task list ordering in timer:** Sort tasks in TaskSelectDialog: today's tasks first, then previous days' uncompleted tasks, then next days' tasks
+b. **Pause time recording:** When user clicks pause, start a separate pause timer. Record pause durations separately in `timer_sessions.paused_duration_seconds` (already exists in schema)
+c. **Fullscreen distraction-free modal:** A 100% width/height modal with: task name, large timer display, pause button, break button, resize/exit button. Pure focus mode with no navigation visible
+d. **Pomodoro session integration with tasks:** If a task is linked to a session, adjust pomodoro phases accordingly
+e. **Day start time setting:** Allow users to set their study day start time in settings (e.g., "My day starts at 6 AM"). This affects which tasks show as "today's tasks" and when streaks reset
+
+**New files:** `src/components/timer/FullscreenTimerModal.tsx`
+**Modified files:** `src/components/timer/TaskSelectDialog.tsx`, `src/pages/TimerPage.tsx`, `src/stores/timerStore.ts`, `src/components/settings/StudySessionsSettings.tsx`
+
+---
+
+## Feature 11: Hierarchy Management Page and Syllabus Import
+
+**Problem:** No standalone page to manage streams/subjects/chapters/topics. Need syllabus import via JSON.
+
+a. **Hierarchy page at `/hierarchy`:** Tabbed view for Streams, Subjects, Chapters, Topics with pagination, search, and contextual filters. Each tab shows items in a paginated table/grid with right-click/long-press/double-click edit and delete (same pattern as goal detail page)
+b. **Syllabus import at `/import`:** Upload a `.json` file that contains the full hierarchy (goal, streams, subjects, chapters, topics) minus project and tasks. On upload:
+   - Parse and validate the JSON structure
+   - Show a preview that looks exactly like the goal detail page (with all hierarchy items)
+   - Ask for goal target date / start-end dates
+   - "Import" button creates everything in the database
+c. **JSON format spec:** Define a standard JSON schema for syllabus files
+
+**New files:** `src/pages/HierarchyPage.tsx`, `src/pages/SyllabusImportPage.tsx`
+**Modified files:** `src/App.tsx`, sidebar/nav
+
+---
+
+## Feature 12: Sidebar, Dashboard, and Navigation Overhaul
+
+**Problem:** Sidebar needs all pages, independent scrolling, collapse/expand behavior. Dashboard needs layout changes.
+
+a. **Sidebar updates:**
+   - Add all new pages: Tasks, Holidays, Journal, Hierarchy, Import, Help
+   - Move hamburger/trigger icon INTO the sidebar itself
+   - Sidebar scrolls independently from main content (CSS `overflow-y-auto` on sidebar, separate scroll context)
+   - Collapse to icon-only via button (already supported by `SidebarProvider`), ensure expand button is visible
+b. **Dashboard changes:**
+   - Remove Welcome Banner card completely
+   - Stats card updates: "Time Studied" becomes "Study Time" showing `X hours` (bold) `of planned Y hours` (small). Card border is partially colored green based on completion percentage. "Tasks Done" same border logic. "Adherence" becomes "Discipline Score" (7-day rolling calculation)
+   - Show XP alongside Level in the top-right user dropdown
+   - Add calendar day view grid (same as Calendar day view) after stats cards
+   - Add "Today's Tasks" agenda view sidebar
+   - Keep "Upcoming Tasks (next 7 days)" and "Active Goals" sections
+c. **Account delete:** In Settings, add account deletion with: confirmation dialog, type a phrase (e.g., "DELETE MY ACCOUNT"), enter password, then wipe all user data from database and delete auth account
+
+**Modified files:** `src/components/layout/AppSidebar.tsx`, `src/components/layout/MobileBottomNav.tsx`, `src/pages/Dashboard.tsx`, `src/components/dashboard/QuickStatsCards.tsx`, `src/components/dashboard/WelcomeBanner.tsx` (remove), `src/components/layout/AppHeader.tsx`, `src/components/settings/ProfileSettings.tsx` or new `src/components/settings/AccountSettings.tsx`
+
+---
+
+## Feature 13: Calendar Page Enhancements
+
+**Problem:** Calendar needs project/goal scoping, improved views, and task completion modals.
+
+a. **Project/Goal scope filter:** Add a project and goal selector at the top of the calendar page. All data filters to the selected scope
+b. **Month view:** Remove task-add option from date cell click modal. Timer icon in modal gives two options: "Pomodoro" or "Direct Timer". Mark complete triggers the task-type-specific completion modal (Feature 7b)
+c. **Week view:** Fix width of weekday columns so they don't overflow vertically. Show sessions and tasks in their respective day cells
+d. **Day view redesign:** Change to a 6x5 grid of 30 hour-cells (3 previous days + current day + 3 next days). Active hours highlighted. Cell background colored by session colors. If multiple sessions in one hour, cell is horizontally divided. Task bars run across cells showing scheduled duration, clickable to navigate to task detail
+e. **Agenda view:** Add view range options: Day (today/tomorrow/yesterday/selected date), Week (this/next/previous/next 7 days), Month (this/next/previous/next 30 days), Custom (date range picker bounded by project dates)
+f. **Adherence section:** Updates with above selections. Add a summary card showing total tasks, completed, total study hours, and other metrics
+g. **Current date cell highlight:** Ensure today's date is always visually highlighted in all views
+
+**Modified files:** `src/pages/Calendar.tsx`, `src/components/calendar/CalendarMonthView.tsx`, `src/components/calendar/CalendarWeekView.tsx`, `src/components/calendar/CalendarDayView.tsx`, `src/components/calendar/CalendarAgendaView.tsx`, `src/components/calendar/DateTasksModal.tsx`, `src/components/calendar/AdherencePanel.tsx`
+
+---
+
+## Feature 14: Analytics, Features/Bug Reporting, and Help Pages
+
+**Problem:** Analytics needs hierarchy scoping. No feedback system or help page exists.
+
+a. **Scoped analytics:** Add project/goal/stream/subject/chapter/topic filter cascade on the analytics page. When a scope is selected, all charts and metrics filter to that scope. Different metrics for different hierarchy levels (e.g., topic-level shows task completion, exam scores; project-level shows overall time distribution, goal progress)
+b. **Task type analytics:** Add analytics for task types -- time per type, completion rate per type, exam performance trends
+c. **Session analytics:** Add timer session analytics -- average session duration, sessions per day trend, best focus times
+
+d. **Features & Bug reporting page at `/feedback`:**
+   - Form to submit: title, description, page-specific or general, image upload (max 5MB, supports clipboard paste via Ctrl+V)
+   - List of all feature requests and bug reports (own + others)
+   - Status indicators (submitted, in review, planned, resolved)
+
+e. **Help page at `/help`:** Comprehensive documentation page covering:
+   - How to use each feature
+   - Description of all pages
+   - Step-by-step guides for common workflows
+   - FAQ section
+   - All content is static/hardcoded (no database needed)
+
+**New files:** `src/pages/FeedbackPage.tsx`, `src/pages/HelpPage.tsx`, `src/hooks/useFeedback.ts`
+
+**SQL required:**
+```sql
+CREATE TABLE feedback (
+  feedback_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title VARCHAR(200) NOT NULL,
+  description TEXT NOT NULL,
+  type VARCHAR(20) NOT NULL CHECK (type IN ('feature', 'bug')),
+  page VARCHAR(100),
+  image_url TEXT,
+  status VARCHAR(20) DEFAULT 'submitted' CHECK (status IN ('submitted', 'in_review', 'planned', 'resolved', 'rejected')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**Modified files:** `src/pages/Analytics.tsx`, `src/hooks/useAnalyticsData.ts`, `src/App.tsx`, sidebar/nav
+
+---
+
+## Feature 15: Task Templates
+
+**Problem:** Creating repetitive tasks daily is tedious. Templates allow pre-scheduling.
+
+a. **Template system:** Users create a task template with: name pattern (with variables like `{chapter}`, `{date}`), task type, priority, estimated duration, and a schedule (date range + time)
+b. **Template application:** When a template is active for a date range, tasks are auto-generated or shown as suggestions that the user confirms with just a name entry
+c. **Template management:** In Settings or a dedicated section, users can create/edit/delete templates
+
+**SQL required:**
+```sql
+CREATE TABLE task_templates (
+  template_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name VARCHAR(200) NOT NULL,
+  goal_id UUID REFERENCES goals(goal_id) ON DELETE SET NULL,
+  task_type VARCHAR(50) DEFAULT 'study',
+  priority_number INTEGER DEFAULT 1000,
+  estimated_duration INTEGER,
+  schedule_start DATE,
+  schedule_end DATE,
+  recurrence VARCHAR(20) DEFAULT 'daily',
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**New files:** `src/components/tasks/TaskTemplateDialog.tsx`, `src/hooks/useTaskTemplates.ts`
+
+---
+
+## Feature 16: Google Login
+
+**Problem:** Currently a mockup button. Need real Google OAuth.
+
+a. **Enable Google provider in Supabase Auth settings** (manual step in Supabase dashboard)
+b. **Update login/signup pages:** Replace mockup Google button with real `supabase.auth.signInWithOAuth({ provider: 'google' })`
+c. **Post-Google-login redirect:** After Google login, if the user's profile has a default `user_` username, redirect to a profile setup page for username and avatar selection
+d. **Handle edge cases:** User signs up with email, then tries Google with same email -- should link accounts or show proper error
+
+**Modified files:** `src/pages/LoginPage.tsx`, `src/pages/SignupPage.tsx`, `src/hooks/useAuth.tsx`
+
+---
+
+## Implementation Order (Recommended Phases)
+
+Due to the massive scope, this should be implemented in phases:
+
+**Phase A -- Quick Fixes (Features 1, 2, 3):**
+Storage fix, modal spacing, backup/restore enhancement
+
+**Phase B -- Core Pages (Features 4, 6, 9):**
+Holidays page, Tasks page + detail, Journal
+
+**Phase C -- Task & Goal Enhancements (Features 7, 8):**
+Task completion modals, goal detail redesign, hierarchy editing
+
+**Phase D -- Admin & Badges (Feature 5):**
+Admin system, multi-level badges
+
+**Phase E -- Timer & Templates (Features 10, 15):**
+Timer improvements, fullscreen mode, task templates
+
+**Phase F -- Navigation & Dashboard (Feature 12):**
+Sidebar overhaul, dashboard redesign, account delete
+
+**Phase G -- Calendar (Feature 13):**
+All calendar view enhancements
+
+**Phase H -- Analytics & Utilities (Features 11, 14, 16):**
+Hierarchy page, syllabus import, scoped analytics, feedback, help, Google login
+
+---
+
+## SQL Migrations Summary
+
+New SQL files needed:
+- `sql/020_add_holiday_partial.sql` -- partial holidays
+- `sql/021_add_admin_and_badge_levels.sql` -- admin flag, badge levels
+- `sql/022_add_project_goal_dates.sql` -- start/end dates
+- `sql/023_create_journals.sql` -- journal table
+- `sql/024_create_feedback.sql` -- feedback table
+- `sql/025_create_task_templates.sql` -- templates table
+- `sql/026_update_rls_policies.sql` -- RLS for new tables
+
+## New Pages Summary
+
+| Route | Page | Feature |
+|-------|------|---------|
+| `/tasks` | TasksPage | 6a |
+| `/tasks/:taskId` | TaskDetailPage | 6b |
+| `/holidays` | HolidaysPage | 4a |
+| `/journal` | JournalPage | 9a |
+| `/hierarchy` | HierarchyPage | 11a |
+| `/import` | SyllabusImportPage | 11b |
+| `/feedback` | FeedbackPage | 14d |
+| `/help` | HelpPage | 14e |
+| `/admin/auth` | AdminAuth | 5a |
+| `/admin` | AdminDashboard | 5b |
+| `/admin/badges` | AdminBadges | 5c |
+
