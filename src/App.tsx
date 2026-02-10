@@ -17,6 +17,10 @@ import BadgesPage from "./pages/BadgesPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import GoalDetailPage from "./pages/GoalDetailPage";
+import HolidaysPage from "./pages/HolidaysPage";
+import TasksPage from "./pages/TasksPage";
+import TaskDetailPage from "./pages/TaskDetailPage";
+import JournalPage from "./pages/JournalPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
@@ -83,6 +87,10 @@ const App = () => (
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/timer" element={<TimerPage />} />
                 <Route path="/badges" element={<BadgesPage />} />
+                <Route path="/holidays" element={<HolidaysPage />} />
+                <Route path="/tasks" element={<TasksPage />} />
+                <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
+                <Route path="/journal" element={<JournalPage />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />

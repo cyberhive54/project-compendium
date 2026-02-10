@@ -6,6 +6,9 @@ import {
   Target,
   Settings,
   Trophy,
+  Umbrella,
+  ClipboardList,
+  BookOpen,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -21,10 +24,13 @@ import {
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Tasks", url: "/tasks", icon: ClipboardList },
   { title: "Calendar", url: "/calendar", icon: CalendarDays },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Projects", url: "/projects", icon: FolderKanban },
   { title: "Goals", url: "/goals", icon: Target },
+  { title: "Journal", url: "/journal", icon: BookOpen },
+  { title: "Holidays", url: "/holidays", icon: Umbrella },
   { title: "Badges", url: "/badges", icon: Trophy },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
