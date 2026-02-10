@@ -3,28 +3,34 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Download, Upload, Trash2, Shield } from "lucide-react";
+import { Download, Upload, Shield } from "lucide-react";
+import { RestoreBackupDialog } from "./RestoreBackupDialog";
+
+const BACKUP_TABLES = [
+  "tasks",
+  "subtasks",
+  "goals",
+  "streams",
+  "subjects",
+  "chapters",
+  "topics",
+  "projects",
+  "holidays",
+  "timer_sessions",
+  "user_task_types",
+  "study_sessions_config",
+  "user_badges",
+  "backups_metadata",
+];
 
 export function DataManagement() {
   const { user } = useAuth();
   const [backupPass, setBackupPass] = useState("");
-  const [restorePass, setRestorePass] = useState("");
   const [backing, setBacking] = useState(false);
-  const [restoring, setRestoring] = useState(false);
+  const [restoreOpen, setRestoreOpen] = useState(false);
 
   const handleBackup = async () => {
     if (!user) return;
@@ -35,22 +41,8 @@ export function DataManagement() {
 
     setBacking(true);
     try {
-      // Fetch all user data
-      const tables = [
-        "tasks",
-        "goals",
-        "streams",
-        "subjects",
-        "chapters",
-        "topics",
-        "projects",
-        "holidays",
-        "timer_sessions",
-        "user_task_types",
-      ];
-
       const backup: Record<string, any[]> = {};
-      for (const table of tables) {
+      for (const table of BACKUP_TABLES) {
         const { data } = await supabase
           .from(table)
           .select("*")
@@ -62,7 +54,6 @@ export function DataManagement() {
       const encoder = new TextEncoder();
       const plaintext = JSON.stringify(backup);
 
-      // Derive key from passphrase
       const salt = crypto.getRandomValues(new Uint8Array(16));
       const iv = crypto.getRandomValues(new Uint8Array(12));
 
@@ -75,12 +66,7 @@ export function DataManagement() {
       );
 
       const key = await crypto.subtle.deriveKey(
-        {
-          name: "PBKDF2",
-          salt,
-          iterations: 100000,
-          hash: "SHA-256",
-        },
+        { name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" },
         keyMaterial,
         { name: "AES-GCM", length: 256 },
         false,
@@ -93,15 +79,24 @@ export function DataManagement() {
         encoder.encode(plaintext)
       );
 
-      // Bundle salt + iv + ciphertext
+      // Build bundle with metadata
+      const tableCounts: Record<string, number> = {};
+      for (const t of BACKUP_TABLES) {
+        tableCounts[t] = backup[t]?.length ?? 0;
+      }
+
       const bundle = {
         version: 1,
+        metadata: {
+          created_at: new Date().toISOString(),
+          tables: tableCounts,
+          total_records: Object.values(tableCounts).reduce((a, b) => a + b, 0),
+        },
         salt: Array.from(salt),
         iv: Array.from(iv),
         data: Array.from(new Uint8Array(encrypted)),
       };
 
-      // Download
       const blob = new Blob([JSON.stringify(bundle)], {
         type: "application/json",
       });
@@ -118,85 +113,6 @@ export function DataManagement() {
       console.error(err);
     }
     setBacking(false);
-  };
-
-  const handleRestore = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-
-    if (restorePass.length < 8) {
-      toast.error("Enter your backup passphrase (min 8 chars)");
-      return;
-    }
-
-    setRestoring(true);
-    try {
-      const text = await file.text();
-      const bundle = JSON.parse(text);
-
-      if (bundle.version !== 1) throw new Error("Unsupported backup format");
-
-      const salt = new Uint8Array(bundle.salt);
-      const iv = new Uint8Array(bundle.iv);
-      const ciphertext = new Uint8Array(bundle.data);
-
-      const encoder = new TextEncoder();
-      const keyMaterial = await crypto.subtle.importKey(
-        "raw",
-        encoder.encode(restorePass),
-        { name: "PBKDF2" },
-        false,
-        ["deriveKey"]
-      );
-
-      const key = await crypto.subtle.deriveKey(
-        {
-          name: "PBKDF2",
-          salt,
-          iterations: 100000,
-          hash: "SHA-256",
-        },
-        keyMaterial,
-        { name: "AES-GCM", length: 256 },
-        false,
-        ["decrypt"]
-      );
-
-      const decrypted = await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv },
-        key,
-        ciphertext
-      );
-
-      const decoder = new TextDecoder();
-      const backup = JSON.parse(decoder.decode(decrypted));
-
-      // Merge data (upsert)
-      const tables = Object.keys(backup);
-      let totalRestored = 0;
-      for (const table of tables) {
-        if (!backup[table]?.length) continue;
-        const { error } = await supabase.from(table).upsert(backup[table], {
-          onConflict: getConflictKey(table),
-        });
-        if (error) {
-          console.error(`Restore error for ${table}:`, error);
-        } else {
-          totalRestored += backup[table].length;
-        }
-      }
-
-      toast.success(`Restored ${totalRestored} records`);
-    } catch (err: any) {
-      if (err.name === "OperationError") {
-        toast.error("Wrong passphrase");
-      } else {
-        toast.error("Restore failed: " + (err.message || "Unknown error"));
-      }
-    }
-    setRestoring(false);
-    // Reset file input
-    e.target.value = "";
   };
 
   return (
@@ -220,10 +136,14 @@ export function DataManagement() {
               minLength={8}
             />
             <p className="text-xs text-muted-foreground">
-              Your data is encrypted with AES-256. Remember this passphrase for restore.
+              Your data is encrypted with AES-256. Remember this passphrase for
+              restore.
             </p>
           </div>
-          <Button onClick={handleBackup} disabled={backing || backupPass.length < 8}>
+          <Button
+            onClick={handleBackup}
+            disabled={backing || backupPass.length < 8}
+          >
             <Download className="h-3.5 w-3.5 mr-1.5" />
             {backing ? "Creating Backup..." : "Download Backup"}
           </Button>
@@ -236,51 +156,18 @@ export function DataManagement() {
           <CardTitle className="text-base">Restore from Backup</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 max-w-sm">
-          <div className="space-y-1.5">
-            <Label>Passphrase</Label>
-            <Input
-              type="password"
-              value={restorePass}
-              onChange={(e) => setRestorePass(e.target.value)}
-              placeholder="Enter backup passphrase"
-            />
-          </div>
-          <Label htmlFor="restore-file" className="cursor-pointer">
-            <Button variant="outline" asChild disabled={restoring}>
-              <span>
-                <Upload className="h-3.5 w-3.5 mr-1.5" />
-                {restoring ? "Restoring..." : "Upload Backup File"}
-              </span>
-            </Button>
-          </Label>
-          <input
-            id="restore-file"
-            type="file"
-            accept=".json"
-            className="hidden"
-            onChange={handleRestore}
-          />
-          <p className="text-xs text-muted-foreground">
-            Data is merged (not replaced). Existing records are updated.
+          <p className="text-sm text-muted-foreground">
+            Upload a previously exported backup file. Data is merged — existing
+            records are updated, new ones are added.
           </p>
+          <Button variant="outline" onClick={() => setRestoreOpen(true)}>
+            <Upload className="h-3.5 w-3.5 mr-1.5" />
+            Restore Backup
+          </Button>
         </CardContent>
       </Card>
+
+      <RestoreBackupDialog open={restoreOpen} onOpenChange={setRestoreOpen} />
     </div>
   );
-}
-
-function getConflictKey(table: string): string {
-  const keys: Record<string, string> = {
-    tasks: "task_id",
-    goals: "goal_id",
-    streams: "stream_id",
-    subjects: "subject_id",
-    chapters: "chapter_id",
-    topics: "topic_id",
-    projects: "project_id",
-    holidays: "holiday_id",
-    timer_sessions: "session_id",
-    user_task_types: "task_type_id",
-  };
-  return keys[table] ?? "id";
 }
