@@ -8,6 +8,8 @@ export interface Holiday {
   date: string;
   holiday_type: string;
   reason: string | null;
+  study_percentage?: number;
+  is_partial?: boolean;
   created_at: string;
 }
 
@@ -34,6 +36,7 @@ export function useHolidays() {
       date: string;
       holiday_type?: string;
       reason?: string;
+      study_percentage?: number;
     }) => {
       const holidayDate = new Date(input.date);
       const sevenDaysAgo = new Date();
@@ -51,6 +54,7 @@ export function useHolidays() {
           date: input.date,
           holiday_type: input.holiday_type ?? "Holiday",
           reason: input.reason,
+          study_percentage: input.study_percentage ?? 0,
         })
         .select()
         .single();
@@ -60,6 +64,31 @@ export function useHolidays() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["holidays"] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    },
+  });
+
+  const update = useMutation({
+    mutationFn: async ({
+      id,
+      ...input
+    }: {
+      id: string;
+      date?: string;
+      holiday_type?: string;
+      reason?: string;
+      study_percentage?: number;
+    }) => {
+      const { data, error } = await supabase
+        .from("holidays")
+        .update(input)
+        .eq("holiday_id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as Holiday;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["holidays"] });
     },
   });
 
@@ -76,5 +105,5 @@ export function useHolidays() {
     },
   });
 
-  return { ...query, holidays: query.data ?? [], create, remove };
+  return { ...query, holidays: query.data ?? [], create, update, remove };
 }
