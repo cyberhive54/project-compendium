@@ -10,12 +10,21 @@ import { StreakLevelCard } from "@/components/dashboard/StreakLevelCard";
 import { DashboardTemplates } from "@/components/dashboard/DashboardTemplates";
 import { MonthlyTrendsChart } from "@/components/dashboard/MonthlyTrendsChart";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
+import { useState } from "react";
+import Confetti from "react-confetti";
+import { useAuth } from "@/hooks/useAuth";
+
+import { SEO } from "@/components/SEO";
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const [showConfetti, setShowConfetti] = useState(false);
   const { data: stats, isLoading } = useDashboardStats();
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="space-y-6 pb-20 md:pb-0">
+      <SEO title="Dashboard" description="View your today's tasks and progress." />
+      {showConfetti && <Confetti recycle={false} numberOfPieces={200} />}
       {/* Active Study Session Indicator */}
       <ActiveSessionIndicator />
 

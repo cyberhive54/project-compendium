@@ -71,78 +71,82 @@ function HomeRoute() {
   return <LandingPage />;
 }
 
+import { HelmetProvider } from "react-helmet-async";
+
 const App = () => (
-  <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AuthProvider>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/" element={<HomeRoute />} />
-              <Route path="/features" element={<FeaturesPage />} />
-              <Route path="/contact" element={<ContactPage />} />
-              <Route path="/privacy" element={<PrivacyPolicyPage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/signup" element={<SignupPage />} />
-              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
+  <HelmetProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AuthProvider>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/" element={<HomeRoute />} />
+                <Route path="/features" element={<FeaturesPage />} />
+                <Route path="/contact" element={<ContactPage />} />
+                <Route path="/privacy" element={<PrivacyPolicyPage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/signup" element={<SignupPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-              {/* Redirect legacy profile-setup to settings */}
-              <Route path="/profile-setup" element={<Navigate to="/settings" replace />} />
+                {/* Redirect legacy profile-setup to settings */}
+                <Route path="/profile-setup" element={<Navigate to="/settings" replace />} />
 
-              {/* Protected routes */}
-              <Route
-                element={
-                  <ProtectedRoute>
-                    <AppLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/calendar" element={<CalendarPage />} />
-                <Route path="/analytics" element={<AnalyticsPage />} />
-                <Route path="/projects" element={<ProjectsPage />} />
-                <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
-                <Route path="/goals" element={<GoalsPage />} />
-                <Route path="/goals/:goalId" element={<GoalDetailPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/timer" element={<TimerPage />} />
-                <Route path="/badges" element={<BadgesPage />} />
-                <Route path="/holidays" element={<HolidaysPage />} />
-                <Route path="/tasks" element={<TasksPage />} />
-                <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
-                <Route path="/journal" element={<JournalPage />} />
-                <Route path="/hierarchy" element={<HierarchyPage />} />
+                {/* Protected routes */}
+                <Route
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/calendar" element={<CalendarPage />} />
+                  <Route path="/analytics" element={<AnalyticsPage />} />
+                  <Route path="/projects" element={<ProjectsPage />} />
+                  <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
+                  <Route path="/goals" element={<GoalsPage />} />
+                  <Route path="/goals/:goalId" element={<GoalDetailPage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/timer" element={<TimerPage />} />
+                  <Route path="/badges" element={<BadgesPage />} />
+                  <Route path="/holidays" element={<HolidaysPage />} />
+                  <Route path="/tasks" element={<TasksPage />} />
+                  <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
+                  <Route path="/journal" element={<JournalPage />} />
+                  <Route path="/hierarchy" element={<HierarchyPage />} />
 
-                <Route path="/feedback" element={<FeedbackPage />} />
-                <Route path="/help" element={<HelpPage />} />
-                <Route path="/menu" element={<MenuPage />} />
-              </Route>
+                  <Route path="/feedback" element={<FeedbackPage />} />
+                  <Route path="/help" element={<HelpPage />} />
+                  <Route path="/menu" element={<MenuPage />} />
+                </Route>
 
-              {/* Admin Routes */}
-              <Route path="/admin" element={<AdminLayout />}>
-                <Route index element={<AdminDashboard />} />
-                <Route path="users" element={<AdminUsers />} />
-                <Route path="health" element={<AdminSystemHealth />} />
-                <Route path="badges" element={<AdminBadges />} />
-                <Route path="badges/docs" element={<AdminBadgesDocs />} />
-                <Route path="syllabus/docs" element={<SyllabusDocs />} />
-                <Route path="feedback" element={<FeedbackManagement />} />
-                <Route path="contact-us" element={<AdminContactPage />} />
-                <Route path="notes" element={<AdminNotesPage />} />
-                <Route path="docs-dev" element={<DevDocsPage />} />
-              </Route>
+                {/* Admin Routes */}
+                <Route path="/admin" element={<AdminLayout />}>
+                  <Route index element={<AdminDashboard />} />
+                  <Route path="users" element={<AdminUsers />} />
+                  <Route path="health" element={<AdminSystemHealth />} />
+                  <Route path="badges" element={<AdminBadges />} />
+                  <Route path="badges/docs" element={<AdminBadgesDocs />} />
+                  <Route path="syllabus/docs" element={<SyllabusDocs />} />
+                  <Route path="feedback" element={<FeedbackManagement />} />
+                  <Route path="contact-us" element={<AdminContactPage />} />
+                  <Route path="notes" element={<AdminNotesPage />} />
+                  <Route path="docs-dev" element={<DevDocsPage />} />
+                </Route>
 
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-  </ThemeProvider >
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </AuthProvider>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
+  </HelmetProvider>
 );
 
 export default App;

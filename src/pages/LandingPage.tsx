@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate, Navigate } from "react-router-dom";
 import {
   BookOpen,
   Target,
@@ -8,7 +8,16 @@ import {
   ArrowRight,
   CheckCircle2,
   Zap,
+  Clock,
+  BarChart2,
+  Shield,
+  Menu,
+  X,
+  ChevronRight,
+  Star,
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -66,10 +75,21 @@ const stats = [
 ];
 
 export default function LandingPage() {
+  const { user } = useAuth();
+
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="StudyTracker — Academic Progress & Focus"
+        description="The ultimate study companion for students. Track tasks, manage syllabus, focus with Pomodoro, and analyze your progress."
+        type="website"
+      />
       {/* Nav */}
-      <nav className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur-sm">
+      <nav className="border-b sticky top-0 bg-background/95 backdrop-blur z-50">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <Link to="/" className="flex items-center gap-2">
             <BookOpen className="h-7 w-7 text-primary" />
