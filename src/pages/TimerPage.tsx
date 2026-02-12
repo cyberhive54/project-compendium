@@ -7,6 +7,8 @@ import { PomodoroIndicator } from "@/components/timer/PomodoroIndicator";
 import { PomodoroSettings } from "@/components/timer/PomodoroSettings";
 import { TaskSelectDialog } from "@/components/timer/TaskSelectDialog";
 import { TimerSessionHistory } from "@/components/timer/TimerSessionHistory";
+import { TimerHistorySection } from "@/components/timer/TimerHistorySection";
+import { FullscreenTimerModal } from "@/components/timer/FullscreenTimerModal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +22,7 @@ import {
   Minimize2,
   BookOpen,
   Zap,
+  Maximize2,
 } from "lucide-react";
 
 export default function TimerPage() {
@@ -42,11 +45,13 @@ export default function TimerPage() {
 
   // Auto-start timer if navigated with taskId in state
   useEffect(() => {
-    const state = location.state as { taskId?: string; taskName?: string } | null;
+    const state = location.state as { taskId?: string; taskName?: string; mode?: string } | null;
     if (state?.taskId && status === "idle") {
+      const isPomodoro = state.mode === 'pomodoro';
+
       // Look up the task name if not provided
       if (state.taskName) {
-        startTimer(state.taskId, state.taskName, false);
+        startTimer(state.taskId, state.taskName, isPomodoro);
       } else {
         // Fetch task name from database
         supabase
@@ -56,7 +61,7 @@ export default function TimerPage() {
           .maybeSingle()
           .then(({ data }) => {
             if (data) {
-              startTimer(state.taskId!, data.name, false);
+              startTimer(state.taskId!, data.name, isPomodoro);
             } else {
               toast({
                 title: "Task not found",
@@ -71,12 +76,8 @@ export default function TimerPage() {
     }
   }, [location.state]);
 
-  // When navigating to timer page while timer is running, show fullscreen
-  useEffect(() => {
-    if (status !== "idle") {
-      setFullscreen(true);
-    }
-  }, []);
+  // Don't auto-fullscreen when navigating to timer page
+  // User can manually enter fullscreen with button
 
   // Auto-minimize when navigating AWAY from timer page
   useEffect(() => {
@@ -120,49 +121,63 @@ export default function TimerPage() {
     setMinimized(true);
   };
 
+  const handleFullscreen = () => {
+    setFullscreen(true);
+  };
+
   // ── Fullscreen Focus Mode ──
   if (status !== "idle" && isFullscreen) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-8rem)] gap-8">
-        {/* Task Info */}
-        <div className="flex items-center gap-2 text-center">
-          <BookOpen className="h-5 w-5 text-primary" />
-          <span className="text-lg font-medium">{taskName}</span>
-          {isPomodoroMode && (
-            <Badge variant="secondary" className="gap-1">
-              <Zap className="h-3 w-3" /> Pomodoro
-            </Badge>
-          )}
+      <FullscreenTimerModal
+        onStop={handleStop}
+        onMinimize={handleMinimize}
+      />
+    );
+  }
+
+  // ── Active Timer (Running/Paused on Page) ──
+  if (status !== "idle") {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Study Timer</h1>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleFullscreen}
+              title="Fullscreen Focus Mode"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleMinimize}
+              title="Minimize"
+            >
+              <Minimize2 className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
-        {/* Timer */}
-        <TimerDisplay size="lg" />
+        <Card>
+          <CardContent className="py-12">
+            <div className="flex flex-col items-center gap-8">
+              <TimerDisplay />
+              {isPomodoroMode && <PomodoroIndicator />}
+              <div className="flex flex-col items-center gap-2">
+                <p className="text-lg font-medium">{taskName}</p>
+                <Badge variant="outline" className="text-xs">
+                  {isPomodoroMode ? "Pomodoro Mode" : "Focus Mode"}
+                </Badge>
+              </div>
+              <TimerControls onStop={handleStop} />
+            </div>
+          </CardContent>
+        </Card>
 
-        {/* Pomodoro Indicator */}
-        <PomodoroIndicator />
-
-        {/* Controls */}
-        <TimerControls onStop={handleStop} size="lg" />
-
-        {/* Minimize button */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleMinimize}
-          className="gap-1.5 text-muted-foreground"
-        >
-          <Minimize2 className="h-4 w-4" />
-          Minimize
-        </Button>
-
-        {/* Session History */}
-        {taskId && (
-          <Card className="w-full max-w-md">
-            <CardContent className="pt-4">
-              <TimerSessionHistory taskId={taskId} />
-            </CardContent>
-          </Card>
-        )}
+        <TimerSessionHistory taskId={taskId ?? undefined} />
       </div>
     );
   }
@@ -211,6 +226,10 @@ export default function TimerPage() {
         onOpenChange={setTaskSelectOpen}
         onSelect={handleStartTimer}
       />
+
+      <div className="pt-8">
+        <TimerHistorySection />
+      </div>
     </div>
   );
 }

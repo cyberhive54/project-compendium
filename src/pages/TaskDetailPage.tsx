@@ -1,70 +1,64 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format, parseISO, isPast, isToday } from "date-fns";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  ArrowLeft,
+  CalendarDays,
+  CheckCircle2,
+  Clock,
+  MoreVertical,
+  Pencil,
+  Play,
+  Trash2,
+  Archive,
+  RotateCcw,
+  Calendar as CalendarIcon,
+  Timer as TimerIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { supabase } from "@/lib/supabase";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
-import { useTimerSessions, type TimerSession } from "@/hooks/useTimerSessions";
 import { useGoals } from "@/hooks/useGoals";
+import { useTimerSessions } from "@/hooks/useTimerSessions";
+import { supabase } from "@/lib/supabase";
 import type { Task } from "@/types/database";
-import { toast } from "sonner";
-import {
-  ArrowLeft,
-  Clock,
-  CalendarDays,
-  Timer,
-  Play,
-  CheckCircle2,
-  Pencil,
-  Trash2,
-  Loader2,
-  Target,
-  BookOpen,
-  Layers,
-  FileText,
-} from "lucide-react";
+
+import { TaskCompletionDialog, type TaskCompletionData } from "@/components/tasks/TaskCompletionDialog";
+import { PostponeDialog } from "@/components/tasks/PostponeDialog";
+import { TaskFormDialog } from "@/components/tasks/TaskFormDialog";
+import { BreadcrumbNav } from "@/components/tasks/BreadcrumbNav";
+import { TaskProgressCard } from "@/components/tasks/TaskProgressCard";
+import { TaskTypeContent } from "@/components/tasks/TaskTypeContent";
 
 export default function TaskDetailPage() {
   const { taskId } = useParams<{ taskId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { update, markDone, remove } = useTasks();
+  const { update, markDone, remove, postpone, archive } = useTasks();
   const { data: goals = [] } = useGoals();
   const { sessions } = useTimerSessions(taskId);
 
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
+  const [postponeOpen, setPostponeOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
-  // Breadcrumb data
-  const [breadcrumb, setBreadcrumb] = useState<{
-    goal?: string;
-    subject?: string;
-    chapter?: string;
-    topic?: string;
-    project?: string;
-  }>({});
+  // Breadcrumb items
+  const [breadcrumbItems, setBreadcrumbItems] = useState<{ label: string; href?: string }[]>([]);
 
   useEffect(() => {
     if (!taskId || !user) return;
@@ -83,7 +77,8 @@ export default function TaskDetailPage() {
       setTask(data as Task);
 
       // Build breadcrumb
-      const bc: typeof breadcrumb = {};
+      const items: { label: string; href?: string }[] = [{ label: "Tasks", href: "/tasks" }];
+
       if (data.goal_id) {
         const { data: g } = await supabase
           .from("goals")
@@ -91,42 +86,25 @@ export default function TaskDetailPage() {
           .eq("goal_id", data.goal_id)
           .single();
         if (g) {
-          bc.goal = g.name;
           if (g.project_id) {
             const { data: p } = await supabase
               .from("projects")
               .select("name")
               .eq("project_id", g.project_id)
               .single();
-            if (p) bc.project = p.name;
+            if (p) items.push({ label: p.name, href: `/projects/${g.project_id}` });
           }
+          items.push({ label: g.name, href: `/goals/${data.goal_id}` });
         }
       }
+      // Add subject/chapter/topic if relevant
       if (data.subject_id) {
-        const { data: s } = await supabase
-          .from("subjects")
-          .select("name")
-          .eq("subject_id", data.subject_id)
-          .single();
-        if (s) bc.subject = s.name;
+        const { data: s } = await supabase.from("subjects").select("name").eq("subject_id", data.subject_id).single();
+        if (s) items.push({ label: s.name });
       }
-      if (data.chapter_id) {
-        const { data: c } = await supabase
-          .from("chapters")
-          .select("name")
-          .eq("chapter_id", data.chapter_id)
-          .single();
-        if (c) bc.chapter = c.name;
-      }
-      if (data.topic_id) {
-        const { data: t } = await supabase
-          .from("topics")
-          .select("name")
-          .eq("topic_id", data.topic_id)
-          .single();
-        if (t) bc.topic = t.name;
-      }
-      setBreadcrumb(bc);
+
+      items.push({ label: data.name }); // Current task
+      setBreadcrumbItems(items);
       setLoading(false);
     };
     fetchTask();
@@ -151,46 +129,39 @@ export default function TaskDetailPage() {
   const statusLabel = isOverdue
     ? "Overdue"
     : task.status === "done"
-    ? "Completed"
-    : task.status === "in_progress"
-    ? "In Progress"
-    : task.status === "postponed"
-    ? "Postponed"
-    : task.status === "pending"
-    ? "Pending"
-    : "Scheduled";
+      ? "Completed"
+      : task.status === "in_progress"
+        ? "In Progress"
+        : task.status === "postponed"
+          ? "Postponed"
+          : task.status === "pending"
+            ? "Pending"
+            : "Scheduled";
 
   const statusColor = isOverdue
     ? "text-destructive"
     : task.status === "done"
-    ? "text-success"
-    : task.status === "in_progress"
-    ? "text-primary"
-    : task.status === "postponed"
-    ? "text-destructive"
-    : task.status === "pending"
-    ? "text-warning"
-    : "text-muted-foreground";
+      ? "text-success"
+      : task.status === "in_progress"
+        ? "text-primary"
+        : task.status === "postponed"
+          ? "text-destructive"
+          : task.status === "pending"
+            ? "text-warning"
+            : "text-muted-foreground";
 
   const handleStatusChange = async (newStatus: string) => {
     if (newStatus === "done") {
-      await markDone.mutateAsync(task.task_id);
-    } else {
-      await update.mutateAsync({
-        id: task.task_id,
-        status: newStatus as Task["status"],
-      });
+      setCompletionDialogOpen(true);
+      return;
     }
-    setTask((t) =>
-      t
-        ? {
-            ...t,
-            status: newStatus as Task["status"],
-            completed_at:
-              newStatus === "done" ? new Date().toISOString() : t.completed_at,
-          }
-        : t
-    );
+
+    await update.mutateAsync({
+      id: task.task_id,
+      status: newStatus as Task["status"],
+    });
+
+    setTask((t) => t ? { ...t, status: newStatus as Task["status"] } : t);
     toast.success(`Status changed to ${newStatus}`);
   };
 
@@ -198,6 +169,39 @@ export default function TaskDetailPage() {
     await remove.mutateAsync(task.task_id);
     toast.success("Task deleted");
     navigate("/tasks");
+  };
+
+  const handleComplete = async (data: TaskCompletionData) => {
+    await markDone.mutateAsync({ taskId: task.task_id, ...data });
+    setCompletionDialogOpen(false);
+    // Optimistic update
+    setTask((t) => t ? {
+      ...t,
+      status: 'done',
+      completed_at: new Date().toISOString(),
+      ...data
+    } : t);
+  };
+
+  const handlePostpone = async (date: Date) => {
+    const newDate = format(date, "yyyy-MM-dd");
+    await postpone.mutateAsync({ taskId: task.task_id, newDate });
+    setPostponeOpen(false);
+    setTask((t) => t ? { ...t, status: 'postponed', scheduled_date: newDate } : t);
+    toast.success(`Task postponed to ${format(date, "MMM d")}`);
+  };
+
+  const handleArchive = async () => {
+    await archive.mutateAsync(task.task_id);
+    setTask((t) => t ? { ...t, archived: !t.archived } : t);
+    toast.success(task.archived ? "Task unarchived" : "Task archived");
+  };
+
+  const handleUpdate = async (values: Partial<Task>) => {
+    await update.mutateAsync({ id: task.task_id, ...values });
+    setTask((t) => t ? { ...t, ...values } : t);
+    setEditOpen(false);
+    toast.success("Task updated");
   };
 
   const timerSessions = sessions.data ?? [];
@@ -209,259 +213,184 @@ export default function TaskDetailPage() {
       0
     );
 
-  const isExamType = ["test", "mocktest", "exam"].includes(task.task_type);
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       {/* Back + Breadcrumb */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate("/tasks")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <nav className="text-sm text-muted-foreground flex items-center gap-1 flex-wrap">
-          {breadcrumb.project && (
-            <>
-              <span>{breadcrumb.project}</span>
-              <span>›</span>
-            </>
-          )}
-          {breadcrumb.goal && (
-            <>
-              <span>{breadcrumb.goal}</span>
-              <span>›</span>
-            </>
-          )}
-          {breadcrumb.subject && (
-            <>
-              <span>{breadcrumb.subject}</span>
-              <span>›</span>
-            </>
-          )}
-          {breadcrumb.chapter && (
-            <>
-              <span>{breadcrumb.chapter}</span>
-              <span>›</span>
-            </>
-          )}
-          {breadcrumb.topic && <span>{breadcrumb.topic}</span>}
-        </nav>
+        <BreadcrumbNav items={breadcrumbItems} />
       </div>
 
       {/* Task Header */}
       <Card>
         <CardContent className="pt-6 space-y-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-xl font-bold">{task.name}</h1>
+          <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Badge variant="secondary">{task.task_type}</Badge>
+                <span className={`text-sm font-medium ${statusColor}`}>
+                  {statusLabel}
+                </span>
+                <Badge variant="outline">P{task.priority_number}</Badge>
+                {task.archived && <Badge variant="secondary">Archived</Badge>}
+              </div>
+              <h1 className="text-xl md:text-2xl font-bold">{task.name}</h1>
               {task.description && (
-                <p className="text-sm text-muted-foreground mt-1">
+                <p className="text-muted-foreground mt-2 text-sm md:text-base">
                   {task.description}
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  navigate(`/timer`, { state: { taskId: task.task_id } })
-                }
-              >
-                <Play className="h-3.5 w-3.5 mr-1" />
-                Focus
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-destructive"
-                onClick={() => setDeleteOpen(true)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+
+            {/* Action Bar */}
+            <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+              {task.status !== 'done' && !task.archived && (
+                <>
+                  <Button
+                    className="bg-success hover:bg-success/90 text-white"
+                    size="sm"
+                    onClick={() => setCompletionDialogOpen(true)}
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                    Complete
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => navigate(`/timer`, { state: { taskId: task.task_id } })}
+                  >
+                    <Play className="h-3.5 w-3.5 mr-1" />
+                    Focus
+                  </Button>
+                </>
+              )}
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Edit Task
+                  </DropdownMenuItem>
+                  {task.status !== 'done' && (
+                    <>
+                      <DropdownMenuItem onClick={() => navigate(`/timer`, { state: { taskId: task.task_id, mode: 'pomodoro' } })}>
+                        <TimerIcon className="h-4 w-4 mr-2" />
+                        Start Pomodoro
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setPostponeOpen(true)}>
+                        <CalendarIcon className="h-4 w-4 mr-2" />
+                        Postpone
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {task.status === 'done' && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={async () => {
+                          await update.mutateAsync({
+                            id: task.task_id,
+                            status: 'pending' as Task['status'],
+                            completed_at: null as any,
+                          });
+                          setTask((t) => t ? { ...t, status: 'pending' as Task['status'], completed_at: null } : t);
+                          toast.success('Task marked as incomplete');
+                        }}
+                      >
+                        <RotateCcw className="h-4 w-4 mr-2" />
+                        Mark as Incomplete
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  <DropdownMenuItem onClick={handleArchive}>
+                    <Archive className="h-4 w-4 mr-2" />
+                    {task.archived ? "Unarchive" : "Archive"}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={handleDelete}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap">
-            <Badge variant="secondary">{task.task_type}</Badge>
-            <span className={`text-sm font-medium ${statusColor}`}>
-              {statusLabel}
-            </span>
-            <Badge variant="outline">P{task.priority_number}</Badge>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
             {task.scheduled_date && (
-              <span className="text-sm text-muted-foreground flex items-center gap-1">
+              <span className="flex items-center gap-1">
                 <CalendarDays className="h-3.5 w-3.5" />
                 {format(parseISO(task.scheduled_date), "MMM d, yyyy")}
+              </span>
+            )}
+            {task.estimated_duration && (
+              <span className="flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" />
+                {task.estimated_duration} min est.
+              </span>
+            )}
+            {totalStudyTime > 0 && (
+              <span className="flex items-center gap-1 text-primary">
+                <Play className="h-3.5 w-3.5" />
+                {Math.round(totalStudyTime / 60)} min studied
               </span>
             )}
           </div>
 
           <Separator />
 
-          {/* Status change */}
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">Change status:</span>
-            <Select value={task.status} onValueChange={handleStatusChange}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="scheduled">Scheduled</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="done">Done</SelectItem>
-                <SelectItem value="postponed">Postponed</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="space-y-6">
+            <TaskTypeContent
+              task={task}
+              onEdit={() => setCompletionDialogOpen(true)}
+            />
+
+            <TaskProgressCard
+              task={task}
+              sessions={timerSessions}
+            />
           </div>
+
         </CardContent>
       </Card>
 
-      {/* Info Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card>
-          <CardContent className="py-4 text-center">
-            <Clock className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-            <div className="text-lg font-bold">
-              {Math.round(totalStudyTime / 60)}m
-            </div>
-            <div className="text-xs text-muted-foreground">Study Time</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-4 text-center">
-            <Timer className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-            <div className="text-lg font-bold">{timerSessions.length}</div>
-            <div className="text-xs text-muted-foreground">Sessions</div>
-          </CardContent>
-        </Card>
-        {task.estimated_duration && (
-          <Card>
-            <CardContent className="py-4 text-center">
-              <Target className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-              <div className="text-lg font-bold">{task.estimated_duration}m</div>
-              <div className="text-xs text-muted-foreground">Estimated</div>
-            </CardContent>
-          </Card>
-        )}
-        {task.completed_at && (
-          <Card>
-            <CardContent className="py-4 text-center">
-              <CheckCircle2 className="h-5 w-5 mx-auto mb-1 text-success" />
-              <div className="text-sm font-bold">
-                {format(parseISO(task.completed_at), "MMM d")}
-              </div>
-              <div className="text-xs text-muted-foreground">Completed</div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      <TaskCompletionDialog
+        task={task}
+        open={completionDialogOpen}
+        onOpenChange={setCompletionDialogOpen}
+        onComplete={handleComplete}
+        isSubmitting={markDone.isPending}
+      />
 
-      {/* Exam Results */}
-      {isExamType && task.total_questions != null && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Exam Analysis</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <div className="text-muted-foreground">Total Q</div>
-                <div className="font-bold text-lg">{task.total_questions}</div>
-              </div>
-              <div>
-                <div className="text-muted-foreground">Attempted</div>
-                <div className="font-bold text-lg">
-                  {task.attempted_questions ?? 0}
-                </div>
-              </div>
-              <div>
-                <div className="text-muted-foreground">Correct</div>
-                <div className="font-bold text-lg text-success">
-                  {task.correct_answers ?? 0}
-                </div>
-              </div>
-              <div>
-                <div className="text-muted-foreground">Accuracy</div>
-                <div className="font-bold text-lg text-primary">
-                  {task.accuracy_percentage?.toFixed(1) ?? "—"}%
-                </div>
-              </div>
-              {task.marks_obtained != null && (
-                <div>
-                  <div className="text-muted-foreground">Marks</div>
-                  <div className="font-bold text-lg">
-                    {task.marks_obtained}/{task.total_marks}
-                  </div>
-                </div>
-              )}
-              {task.time_taken_minutes != null && (
-                <div>
-                  <div className="text-muted-foreground">Time Taken</div>
-                  <div className="font-bold text-lg">
-                    {task.time_taken_minutes}m
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+      <PostponeDialog
+        open={postponeOpen}
+        onOpenChange={setPostponeOpen}
+        onPostpone={handlePostpone}
+        currentDate={task.scheduled_date ? parseISO(task.scheduled_date) : undefined}
+        isSubmitting={postpone.isPending}
+      />
+
+      {task && (
+        <TaskFormDialog
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          onSubmit={handleUpdate}
+          defaultValues={task}
+          isEditing={true}
+        />
       )}
 
-      {/* Timer Sessions */}
-      {timerSessions.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Timer Sessions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {timerSessions.map((s) => {
-                const dur =
-                  (s.duration_seconds ?? 0) - (s.paused_duration_seconds ?? 0);
-                return (
-                  <div
-                    key={s.session_id}
-                    className="flex items-center justify-between text-sm border-b last:border-0 pb-2 last:pb-0"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant={
-                          s.session_type === "focus" ? "default" : "secondary"
-                        }
-                        className="text-xs"
-                      >
-                        {s.session_type}
-                      </Badge>
-                      <span className="text-muted-foreground">
-                        {format(parseISO(s.start_time), "MMM d, h:mm a")}
-                      </span>
-                    </div>
-                    <span className="font-medium">
-                      {Math.round(dur / 60)}m
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Delete Confirm */}
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Task</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete "{task.name}" and all its subtasks.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

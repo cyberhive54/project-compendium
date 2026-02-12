@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import type { Subject } from "@/types/database";
 
-export function useSubjects(goalId?: string, streamId?: string | null, showArchived = false) {
+export function useSubjects(goalId?: string | null, streamId?: string | null, showArchived = false) {
   const qc = useQueryClient();
 
   const query = useQuery({
@@ -11,9 +11,15 @@ export function useSubjects(goalId?: string, streamId?: string | null, showArchi
       let q = supabase
         .from("subjects")
         .select("*")
-        .eq("goal_id", goalId!)
-        .eq("archived", showArchived)
         .order("created_at", { ascending: true });
+
+      if (!showArchived) {
+        q = q.eq("archived", false);
+      }
+
+      if (goalId) {
+        q = q.eq("goal_id", goalId);
+      }
 
       if (streamId !== undefined) {
         if (streamId === null) {
@@ -27,7 +33,6 @@ export function useSubjects(goalId?: string, streamId?: string | null, showArchi
       if (error) throw error;
       return data as Subject[];
     },
-    enabled: !!goalId,
   });
 
   const create = useMutation({

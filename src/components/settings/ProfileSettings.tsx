@@ -8,8 +8,19 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { Save, Upload, Eye, EyeOff, Loader2, Lock } from "lucide-react";
+import { Save, Upload, Eye, EyeOff, Loader2, Lock, ShieldAlert } from "lucide-react";
 import { z } from "zod";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+
+const SeparatorComponent = Separator; // Alias to avoid conflict if any
 
 const passwordSchema = z
   .object({
@@ -82,7 +93,7 @@ export function ProfileSettings() {
     const path = `${user.id}/avatar.${ext}`;
 
     const { error: uploadError } = await supabase.storage
-      .from("profile-pictures")
+      .from("avatars")
       .upload(path, file, { upsert: true });
 
     if (uploadError) {
@@ -92,7 +103,7 @@ export function ProfileSettings() {
     }
 
     const { data: urlData } = supabase.storage
-      .from("profile-pictures")
+      .from("avatars")
       .getPublicUrl(path);
 
     const { error: updateError } = await supabase
@@ -190,7 +201,7 @@ export function ProfileSettings() {
           <Input value={user?.email ?? ""} disabled className="bg-muted" />
         </div>
 
-        <Separator />
+        <SeparatorComponent />
 
         {/* Change Password */}
         <div className="space-y-4 max-w-sm">
@@ -250,7 +261,87 @@ export function ProfileSettings() {
             </Button>
           </div>
         </div>
+        <SeparatorComponent />
+
+        {/* Danger Zone */}
+        <div className="space-y-4 max-w-sm pt-2">
+          <div className="flex items-center gap-2 text-destructive">
+            <ShieldAlert className="h-4 w-4" />
+            <h3 className="text-sm font-semibold">Danger Zone</h3>
+          </div>
+          <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 space-y-3">
+            <div className="space-y-1">
+              <h4 className="text-sm font-medium text-destructive">Delete Account</h4>
+              <p className="text-xs text-muted-foreground">
+                Permanently delete your account and all associated data. This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="flex justify-end">
+              <DeleteAccountDialog onDelete={async () => {
+                const { error } = await supabase.rpc('delete_own_account');
+                if (error) {
+                  toast.error("Failed to delete account");
+                } else {
+                  toast.success("Account deleted");
+                  await supabase.auth.signOut();
+                }
+              }} />
+            </div>
+          </div>
+        </div>
       </CardContent>
     </Card>
+  );
+}
+
+function DeleteAccountDialog({ onDelete }: { onDelete: () => Promise<void> }) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [confirmation, setConfirmation] = useState("");
+
+  const handleDelete = async () => {
+    if (confirmation !== "delete my account") return;
+    setLoading(true);
+    await onDelete();
+    setLoading(false);
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="destructive" size="sm" className="w-full sm:w-auto">Delete Account</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete Account?</DialogTitle>
+          <DialogDescription>
+            This will permanently delete your account, tasks, goals, and all progress. This action is irreversible.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-2 py-2">
+          <Label className="text-xs">Type <span className="font-mono font-bold">delete my account</span> to confirm</Label>
+          <Input
+            value={confirmation}
+            onChange={(e) => setConfirmation(e.target.value)}
+            placeholder="delete my account"
+            className="border-destructive/50 focus-visible:ring-destructive"
+          />
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={confirmation !== "delete my account" || loading}
+          >
+            {loading ? "Deleting..." : "Delete Account"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

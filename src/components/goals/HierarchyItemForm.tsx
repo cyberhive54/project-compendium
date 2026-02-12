@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type HierarchyLevel = "stream" | "subject" | "chapter" | "topic";
+export type HierarchyLevel = "stream" | "subject" | "chapter" | "topic";
 
 const schemas: Record<HierarchyLevel, z.ZodObject<any>> = {
   stream: z.object({

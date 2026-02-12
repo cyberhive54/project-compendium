@@ -24,7 +24,10 @@ import {
   Loader2,
   CalendarDays,
   Trash2,
+  Pencil,
 } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
+import { JournalEntryDialog } from "@/components/journal/JournalEntryDialog";
 
 export default function JournalPage() {
   const { journals, isLoading, upsert, remove } = useJournals();
@@ -35,6 +38,7 @@ export default function JournalPage() {
   const [search, setSearch] = useState("");
   const [initialized, setInitialized] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [viewEntry, setViewEntry] = useState<Journal | null>(null);
 
   // Load entry when date changes or data arrives
   const existingEntry = journals.find((j) => j.date === selectedDate);
@@ -103,11 +107,10 @@ export default function JournalPage() {
       <Card>
         <CardContent className="pt-6 space-y-4">
           <div className="flex items-center gap-3">
-            <Input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => handleDateChange(e.target.value)}
-              className="w-auto"
+            <DatePicker
+              date={parseISO(selectedDate)}
+              onSelect={(d) => d && handleDateChange(format(d, "yyyy-MM-dd"))}
+              className="w-[200px]"
             />
             <span className="text-sm text-muted-foreground">
               {format(parseISO(selectedDate), "EEEE, MMMM d, yyyy")}
@@ -177,12 +180,11 @@ export default function JournalPage() {
             {filteredJournals.map((j) => (
               <Card
                 key={j.journal_id}
-                className={`group cursor-pointer transition-colors ${
-                  j.date === selectedDate
-                    ? "border-primary"
-                    : "hover:border-primary/30"
-                }`}
-                onClick={() => handleDateChange(j.date)}
+                className={`group cursor-pointer transition-colors ${j.date === selectedDate
+                  ? "border-primary"
+                  : "hover:border-primary/30"
+                  }`}
+                onClick={() => setViewEntry(j)}
               >
                 <CardContent className="py-4 px-5">
                   <div className="flex items-start justify-between">
@@ -192,17 +194,31 @@ export default function JournalPage() {
                         {format(parseISO(j.date), "EEEE, MMMM d, yyyy")}
                       </span>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteId(j.journal_id);
-                      }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedDate(j.date);
+                          setContent(j.content);
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteId(j.journal_id);
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                   <p className="text-sm text-muted-foreground line-clamp-3">
                     {j.content}
@@ -232,6 +248,15 @@ export default function JournalPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {viewEntry && (
+        <JournalEntryDialog
+          open={!!viewEntry}
+          onOpenChange={(op) => !op && setViewEntry(null)}
+          date={viewEntry.date}
+          content={viewEntry.content}
+        />
+      )}
     </div>
   );
 }

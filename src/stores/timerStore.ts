@@ -94,7 +94,7 @@ export const useTimerStore = create<TimerState>()(
           currentCycle: 1,
           pomodoroTargetSeconds: pomodoro ? config.focusDuration * 60 : null,
           isMinimized: false,
-          isFullscreen: true,
+          isFullscreen: false, // Stay on page instead of auto-fullscreen
         });
       },
 

@@ -76,6 +76,10 @@ export default function LandingPage() {
             <span className="text-xl font-bold tracking-tight">StudyTracker</span>
           </Link>
           <div className="flex items-center gap-2">
+            <div className="hidden md:flex gap-4 text-sm font-medium text-muted-foreground mr-4">
+              <Link to="/features" className="hover:text-foreground">Features</Link>
+              <Link to="/contact" className="hover:text-foreground">Contact</Link>
+            </div>
             <ThemeToggle />
             <Button variant="ghost" asChild>
               <Link to="/login">Log in</Link>
@@ -116,7 +120,7 @@ export default function LandingPage() {
                   </Link>
                 </Button>
                 <Button size="lg" variant="outline" asChild className="text-base px-8">
-                  <a href="#features">Learn More</a>
+                  <Link to="/features">Learn More</Link>
                 </Button>
               </div>
             </div>
@@ -136,11 +140,11 @@ export default function LandingPage() {
                   </div>
                   <div className="w-full space-y-3 mt-4">
                     <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-success shrink-0" style={{ color: "hsl(var(--success))" }} />
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-green-500" />
                       <div className="h-3 rounded-full bg-muted flex-1" />
                     </div>
                     <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-success shrink-0" style={{ color: "hsl(var(--success))" }} />
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-green-500" />
                       <div className="h-3 rounded-full bg-muted flex-1" />
                     </div>
                     <div className="flex items-center gap-2">
@@ -263,12 +267,9 @@ export default function LandingPage() {
             <span>© 2026 StudyTracker. Built for students.</span>
           </div>
           <div className="flex gap-4 text-sm text-muted-foreground">
-            <Link to="/login" className="hover:text-foreground transition-colors">
-              Login
-            </Link>
-            <Link to="/signup" className="hover:text-foreground transition-colors">
-              Sign Up
-            </Link>
+            <Link to="/features" className="hover:text-foreground transition-colors">Features</Link>
+            <Link to="/contact" className="hover:text-foreground transition-colors">Contact</Link>
+            <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
           </div>
         </div>
       </footer>

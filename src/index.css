@@ -171,4 +171,14 @@
   .subject-indigo { color: hsl(239 84% 67%); }
   .subject-purple { color: hsl(258 90% 66%); }
   .subject-pink { color: hsl(330 81% 60%); }
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
 }

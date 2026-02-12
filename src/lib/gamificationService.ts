@@ -126,13 +126,18 @@ async function checkBadges(userId: string, currentTotalXP: number) {
     supabase.from("badges").select("*"),
     supabase
       .from("user_badges")
-      .select("badge_id")
+      .select("badge_id, badge_level")
       .eq("user_id", userId),
   ]);
 
   if (!allBadges) return;
 
   const earnedIds = new Set(earnedBadges?.map((b) => b.badge_id) ?? []);
+  // Helper to get earned level safely
+  const getEarnedLevel = (badgeId: string) => {
+    const found = (earnedBadges as any[])?.find((b) => b.badge_id === badgeId);
+    return found?.badge_level ?? 1;
+  };
 
   const [
     { count: taskCount },
@@ -182,62 +187,140 @@ async function checkBadges(userId: string, currentTotalXP: number) {
   const store = useGamificationStore.getState();
   let xpAccumulator = currentTotalXP;
 
+  /* 
+    Enhanced Badge Logic with Levels
+  */
   for (const badge of allBadges) {
-    if (earnedIds.has(badge.badge_id)) continue;
+    // If not multi-level and already earned, skip
+    const isMultiLevel = Array.isArray(badge.levels) && badge.levels.length > 0;
+    const currentLevel = earnedIds.has(badge.badge_id)
+      ? getEarnedLevel(badge.badge_id)
+      : 0;
+
+    if (!isMultiLevel && currentLevel > 0) continue;
 
     const condition = badge.unlock_condition as Record<string, unknown>;
-    let unlocked = false;
+    let metricValue = 0;
 
     switch (condition.type) {
       case "streak":
-        unlocked = streak >= (condition.days as number);
+        metricValue = streak;
         break;
       case "total_time":
-        unlocked = totalHours >= (condition.hours as number);
+        metricValue = totalHours;
         break;
       case "tasks_completed":
-        unlocked = completedTasks >= (condition.count as number);
+        metricValue = completedTasks;
         break;
       case "exam_accuracy":
-        unlocked = bestAccuracy >= (condition.percentage as number);
+        metricValue = bestAccuracy;
         break;
       case "first_goal":
-        unlocked = (goals?.length ?? 0) > 0;
+        metricValue = goals?.length ?? 0;
         break;
       case "first_timer_session":
-        unlocked = (timerData?.length ?? 0) > 0;
+        metricValue = timerData?.length ?? 0;
         break;
       case "first_exam":
-        unlocked = (examTasks?.length ?? 0) > 0;
+        metricValue = examTasks?.length ?? 0;
         break;
     }
 
-    if (unlocked) {
-      const { error } = await supabase
-        .from("user_badges")
-        .insert({ user_id: userId, badge_id: badge.badge_id });
+    let qualifiedLevel = 0;
+    let xpToAward = 0;
 
-      if (!error) {
-        if (badge.xp_reward > 0) {
-          xpAccumulator += badge.xp_reward;
-          await supabase
-            .from("user_profiles")
-            .update({
-              total_xp: xpAccumulator,
-              lifetime_xp: xpAccumulator,
-            })
-            .eq("user_id", userId);
+    if (isMultiLevel) {
+      // Find highest qualified level
+      // Assumes levels are sorted or we sort them
+      const sortedLevels = [...badge.levels].sort((a: any, b: any) => a.level - b.level);
+
+      for (const level of sortedLevels) {
+        if (metricValue >= level.threshold) {
+          qualifiedLevel = level.level;
         }
+      }
 
-        store.addBadgeUnlock({
-          badge_id: badge.badge_id,
-          name: badge.name,
-          description: badge.description,
-          icon: badge.icon,
-          category: badge.category,
-          tier: badge.tier,
-          xp_reward: badge.xp_reward,
-        });
+      if (qualifiedLevel > currentLevel) {
+        // Calculate XP difference
+        const previouslyAwarded = sortedLevels
+          .filter((l: any) => l.level <= currentLevel)
+          .reduce((sum: number, l: any) => sum + (l.xp_reward || 0), 0);
+
+        const totalAwarded = sortedLevels
+          .filter((l: any) => l.level <= qualifiedLevel)
+          .reduce((sum: number, l: any) => sum + (l.xp_reward || 0), 0);
+
+        xpToAward = totalAwarded - previouslyAwarded;
+      }
+    } else {
+      // Single level logic
+      let threshold = 0;
+      // Map condition fields to a generic threshold
+      if (condition.days) threshold = condition.days as number;
+      else if (condition.hours) threshold = condition.hours as number;
+      else if (condition.count) threshold = condition.count as number;
+      else if (condition.percentage) threshold = condition.percentage as number;
+      // Boolean checks (first_*) imply threshold 1
+      else threshold = 1;
+
+      if (metricValue >= threshold) {
+        qualifiedLevel = 1;
+        xpToAward = badge.xp_reward;
+      }
+    }
+
+    if (qualifiedLevel > currentLevel) {
+      if (currentLevel === 0) {
+        // New badge
+        const { error } = await supabase
+          .from("user_badges")
+          .insert({
+            user_id: userId,
+            badge_id: badge.badge_id,
+            badge_level: qualifiedLevel
+          });
+
+        if (!error) {
+          store.addBadgeUnlock({
+            badge_id: badge.badge_id,
+            name: badge.name,
+            description: badge.description,
+            icon: badge.icon,
+            category: badge.category,
+            tier: badge.tier,
+            xp_reward: xpToAward,
+          });
+        }
+      } else {
+        // Update existing badge level
+        const { error } = await supabase
+          .from("user_badges")
+          .update({ badge_level: qualifiedLevel, unlocked_at: new Date().toISOString() })
+          .eq("user_id", userId)
+          .eq("badge_id", badge.badge_id);
+
+        if (!error) {
+          store.addBadgeUnlock({
+            badge_id: badge.badge_id,
+            name: `${badge.name} (Level ${qualifiedLevel})`,
+            description: badge.description,
+            icon: badge.icon,
+            category: badge.category,
+            tier: badge.tier,
+            xp_reward: xpToAward,
+          });
+        }
+      }
+
+      if (xpToAward > 0) {
+        xpAccumulator += xpToAward;
+        await supabase
+          .from("user_profiles")
+          .update({
+            total_xp: xpAccumulator,
+            lifetime_xp: xpAccumulator,
+          })
+          .eq("user_id", userId);
       }
     }
   }

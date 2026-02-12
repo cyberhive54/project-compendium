@@ -16,6 +16,7 @@ interface UserProfile {
   current_level: number;
   current_streak: number;
   longest_streak: number;
+  start_of_day_hour: number;
 }
 
 interface AuthContextType {
@@ -41,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase
       .from("user_profiles")
       .select(
-        "user_id, username, profile_picture_url, total_xp, current_level, current_streak, longest_streak"
+        "user_id, username, profile_picture_url, total_xp, current_level, current_streak, longest_streak, start_of_day_hour"
       )
       .eq("user_id", userId)
       .single();

@@ -42,7 +42,10 @@ import {
   Umbrella,
   ArrowUpDown,
   Loader2,
+  LayoutGrid,
+  List,
 } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
 
 const HOLIDAY_TYPES = ["Holiday", "Sick Leave", "Family Event", "Travel", "Festival", "Other"];
 
@@ -159,10 +162,14 @@ export default function HolidaysPage() {
     }
   };
 
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  // ... (existing code)
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Umbrella className="h-6 w-6 text-primary" />
@@ -172,14 +179,35 @@ export default function HolidaysPage() {
             Manage holidays and streak freezes
           </p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-1.5" />
-          Add Holiday
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center border rounded-md p-1 bg-muted/50">
+            <Button
+              variant={viewMode === "grid" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={() => setViewMode("grid")}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={() => setViewMode("list")}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-1.5" />
+            Add Holiday
+          </Button>
+        </div>
       </div>
 
       {/* Search & Sort */}
       <div className="flex flex-col sm:flex-row gap-3">
+        {/* ... (existing search code) */}
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -224,10 +252,10 @@ export default function HolidaysPage() {
             <p className="text-xs mt-1">Add holidays to preserve your streaks.</p>
           </CardContent>
         </Card>
-      ) : (
-        <div className="grid gap-3">
+      ) : viewMode === "grid" ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((h) => (
-            <Card key={h.holiday_id} className="group">
+            <Card key={h.holiday_id} className="group hover:border-primary/50 transition-colors">
               <CardContent className="flex items-center justify-between py-4 px-5">
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="text-center shrink-0">
@@ -243,9 +271,9 @@ export default function HolidaysPage() {
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{h.holiday_type}</span>
+                      <span className="font-medium truncate">{h.holiday_type}</span>
                       {(h.study_percentage ?? 0) > 0 && (
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="secondary" className="text-xs shrink-0">
                           {h.study_percentage}% study
                         </Badge>
                       )}
@@ -279,6 +307,56 @@ export default function HolidaysPage() {
             </Card>
           ))}
         </div>
+      ) : (
+        <Card>
+          <div className="divide-y">
+            {filtered.map((h) => (
+              <div key={h.holiday_id} className="flex items-center justify-between p-4 bg-card hover:bg-muted/50 transition-colors">
+                <div className="flex items-center gap-4 md:gap-8 flex-1 min-w-0">
+                  <div className="flex items-center gap-3 shrink-0 w-24">
+                    <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{format(parseISO(h.date), "MMM dd")}</span>
+                  </div>
+
+                  <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4 flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{h.holiday_type}</span>
+                      {(h.study_percentage ?? 0) > 0 && (
+                        <Badge variant="secondary" className="text-xs">
+                          {h.study_percentage}% study
+                        </Badge>
+                      )}
+                    </div>
+                    {h.reason && (
+                      <span className="text-sm text-muted-foreground truncate">
+                        {h.reason}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 pl-4 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => openEdit(h)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive"
+                    onClick={() => setDeleteId(h.holiday_id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
       )}
 
       {/* Create/Edit Dialog */}
@@ -292,10 +370,10 @@ export default function HolidaysPage() {
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label>Date</Label>
-              <Input
-                type="date"
-                value={formDate}
-                onChange={(e) => setFormDate(e.target.value)}
+              <DatePicker
+                date={formDate ? parseISO(formDate) : undefined}
+                onSelect={(d) => d && setFormDate(format(d, "yyyy-MM-dd"))}
+                className="w-full"
               />
             </div>
             <div className="space-y-1.5">

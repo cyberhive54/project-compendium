@@ -13,6 +13,8 @@ interface AgendaViewProps {
   onMarkDone: (taskId: string) => void;
   onStartTimer: (taskId: string) => void;
   onSelectDate: (date: Date) => void;
+  onTaskClick: (taskId: string) => void;
+  onPostpone: (taskId: string, newDate: string) => void;
 }
 
 export function CalendarAgendaView({
@@ -21,6 +23,8 @@ export function CalendarAgendaView({
   onMarkDone,
   onStartTimer,
   onSelectDate,
+  onTaskClick,
+  onPostpone,
 }: AgendaViewProps) {
   const grouped = useMemo(() => {
     const map: Record<string, typeof tasks> = {};
@@ -95,9 +99,10 @@ export function CalendarAgendaView({
                   <div
                     key={task.task_id}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2",
+                      "flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/50 transition-colors",
                       isDone && "opacity-60"
                     )}
+                    onClick={() => onTaskClick(task.task_id)}
                   >
                     <div
                       className="w-1 self-stretch rounded-full shrink-0"
@@ -129,7 +134,10 @@ export function CalendarAgendaView({
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7"
-                            onClick={() => onStartTimer(task.task_id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onStartTimer(task.task_id);
+                            }}
                           >
                             <Play className="h-3.5 w-3.5" />
                           </Button>
@@ -137,7 +145,10 @@ export function CalendarAgendaView({
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7 text-success hover:text-success"
-                            onClick={() => onMarkDone(task.task_id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onMarkDone(task.task_id);
+                            }}
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" />
                           </Button>

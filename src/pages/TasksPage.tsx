@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { format, parseISO, isToday, isPast } from "date-fns";
+import { format, parseISO, isToday, isPast, isTomorrow, isYesterday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,14 +19,17 @@ import { toast } from "sonner";
 import {
   Search,
   ListFilter,
+  CalendarDays,
   ArrowUpDown,
   ChevronLeft,
   ChevronRight,
   Loader2,
   ClipboardList,
   Plus,
+  CheckCircle2,
 } from "lucide-react";
 import { TaskFormDialog } from "@/components/tasks/TaskFormDialog";
+import { TaskCompletionDialog } from "@/components/tasks/TaskCompletionDialog";
 
 const PAGE_SIZE = 20;
 
@@ -43,16 +46,19 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function TasksPage() {
   const navigate = useNavigate();
-  const { data: allTasks, isLoading, create: createTask } = useTasks();
+  const { data: allTasks, isLoading, create: createTask, markDone } = useTasks();
   const { data: goals = [] } = useGoals();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("__all__");
+  const [dateFilter, setDateFilter] = useState("__all__");
   const [goalFilter, setGoalFilter] = useState("__all__");
   const [sortField, setSortField] = useState<SortField>("scheduled_date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [page, setPage] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
+  const [completionOpen, setCompletionOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   const tasks = allTasks ?? [];
 
@@ -70,6 +76,22 @@ export default function TasksPage() {
 
     if (statusFilter !== "__all__") {
       list = list.filter((t) => t.status === statusFilter);
+    }
+
+    if (dateFilter !== "__all__") {
+      const now = new Date();
+      list = list.filter((t) => {
+        if (!t.scheduled_date) return false;
+        const d = parseISO(t.scheduled_date);
+        switch (dateFilter) {
+          case "today": return isToday(d);
+          case "tomorrow": return isTomorrow(d);
+          case "yesterday": return isYesterday(d);
+          case "this_week": return isWithinInterval(d, { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) });
+          case "this_month": return isWithinInterval(d, { start: startOfMonth(now), end: endOfMonth(now) });
+          default: return true;
+        }
+      });
     }
 
     if (goalFilter !== "__all__") {
@@ -99,7 +121,7 @@ export default function TasksPage() {
     });
 
     return list;
-  }, [tasks, search, statusFilter, goalFilter, sortField, sortDir]);
+  }, [tasks, search, statusFilter, dateFilter, goalFilter, sortField, sortDir]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -153,6 +175,8 @@ export default function TasksPage() {
         </Button>
       </div>
 
+
+
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
@@ -185,6 +209,26 @@ export default function TasksPage() {
             <SelectItem value="in_progress">In Progress</SelectItem>
             <SelectItem value="done">Done</SelectItem>
             <SelectItem value="postponed">Postponed</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select
+          value={dateFilter}
+          onValueChange={(v) => {
+            setDateFilter(v);
+            setPage(0);
+          }}
+        >
+          <SelectTrigger className="w-[150px]">
+            <CalendarDays className="h-3.5 w-3.5 mr-1.5" />
+            <SelectValue placeholder="Date" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Dates</SelectItem>
+            <SelectItem value="yesterday">Yesterday</SelectItem>
+            <SelectItem value="today">Today</SelectItem>
+            <SelectItem value="tomorrow">Tomorrow</SelectItem>
+            <SelectItem value="this_week">This Week</SelectItem>
+            <SelectItem value="this_month">This Month</SelectItem>
           </SelectContent>
         </Select>
         <Select
@@ -254,15 +298,14 @@ export default function TasksPage() {
             >
               <CardContent className="flex items-start gap-3 py-4 px-5">
                 <div
-                  className={`mt-1 h-3 w-3 rounded-full shrink-0 border-2 ${
-                    t.status === "done"
-                      ? "bg-[hsl(var(--success))] border-[hsl(var(--success))]"
-                      : t.status === "in_progress"
+                  className={`mt-1 h-3 w-3 rounded-full shrink-0 border-2 ${t.status === "done"
+                    ? "bg-[hsl(var(--success))] border-[hsl(var(--success))]"
+                    : t.status === "in_progress"
                       ? "border-primary bg-primary/20"
                       : t.status === "postponed"
-                      ? "border-destructive bg-destructive/20"
-                      : "border-muted-foreground"
-                  }`}
+                        ? "border-destructive bg-destructive/20"
+                        : "border-muted-foreground"
+                    }`}
                 />
                 <div className="min-w-0 flex-1">
                   <div className="font-medium truncate">{t.name}</div>
@@ -280,8 +323,22 @@ export default function TasksPage() {
                     </Badge>
                   </div>
                 </div>
-                <div className="text-xs text-muted-foreground shrink-0">
-                  P{t.priority_number}
+                <div className="text-xs text-muted-foreground shrink-0 flex flex-col items-end gap-2">
+                  <span>P{t.priority_number}</span>
+                  {t.status !== 'done' && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-success"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedTask(t);
+                        setCompletionOpen(true);
+                      }}
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -314,7 +371,6 @@ export default function TasksPage() {
         </div>
       )}
 
-      {/* Create task dialog - needs a goal */}
       {goals.length > 0 && (
         <TaskFormDialog
           open={createOpen}
@@ -331,6 +387,24 @@ export default function TasksPage() {
           }}
         />
       )}
+
+      {selectedTask && (
+        <TaskCompletionDialog
+          task={selectedTask}
+          open={completionOpen}
+          onOpenChange={setCompletionOpen}
+          onComplete={async (data) => {
+            if (selectedTask) {
+              // markDone is not destructured from useTasks yet, need to add it
+              await markDone.mutateAsync({ taskId: selectedTask.task_id, ...data });
+              setCompletionOpen(false);
+              setSelectedTask(null);
+            }
+          }}
+          isSubmitting={markDone.isPending}
+        />
+      )}
+
     </div>
   );
 }

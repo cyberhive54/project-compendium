@@ -7,6 +7,10 @@ export interface Project {
   description: string | null;
   color: string;
   icon: string;
+  start_date: string | null;
+  end_date: string | null;
+  completed: boolean;
+  completed_at: string | null;
   archived: boolean;
   archived_at: string | null;
   created_at: string;
@@ -21,9 +25,13 @@ export interface Goal {
   description: string | null;
   goal_type: "board" | "competitive" | "semester" | "custom";
   target_date: string | null;
+  start_date: string | null;
+  end_date: string | null;
   color: string;
   icon: string;
   weightage_enabled: boolean;
+  completed: boolean;
+  completed_at: string | null;
   archived: boolean;
   archived_at: string | null;
   created_at: string;
@@ -36,6 +44,8 @@ export interface Stream {
   name: string;
   weightage: number;
   color: string | null;
+  completed: boolean;
+  completed_at: string | null;
   archived: boolean;
   archived_at: string | null;
   created_at: string;
@@ -52,6 +62,8 @@ export interface Subject {
   icon: string;
   total_chapters: number;
   completed_chapters: number;
+  completed: boolean;
+  completed_at: string | null;
   archived: boolean;
   archived_at: string | null;
   created_at: string;
@@ -122,6 +134,11 @@ export interface Task {
   marks_obtained: number | null;
   accuracy_percentage: number | null;
   speed_qpm: number | null;
+  is_manual_completion: boolean;
+  difficulty_level: string | null;
+  grade: string | null;
+  submission_status: string | null;
+  retention_score: number | null;
   archived: boolean;
   archived_at: string | null;
   created_at: string;
@@ -157,6 +174,7 @@ export interface UserTaskType {
   user_id: string;
   name: string;
   icon: string;
+  system_behavior: "study" | "practice" | "exam" | "assignment" | "revision";
   default_duration: number | null;
   base_xp: number;
   is_custom: boolean;
@@ -186,13 +204,14 @@ export const GOAL_TYPES = [
 ] as const;
 
 export const DEFAULT_TASK_TYPES = [
-  { name: "notes", icon: "📝" },
-  { name: "lecture", icon: "🎧" },
-  { name: "revision", icon: "🔄" },
-  { name: "practice", icon: "✏️" },
-  { name: "test", icon: "📊" },
-  { name: "mocktest", icon: "🧪" },
-  { name: "exam", icon: "📑" },
+  { name: "notes", icon: "📝", system_behavior: "study" },
+  { name: "lecture", icon: "🎧", system_behavior: "study" },
+  { name: "revision", icon: "🔄", system_behavior: "revision" },
+  { name: "practice", icon: "✏️", system_behavior: "practice" },
+  { name: "test", icon: "📊", system_behavior: "exam" },
+  { name: "mocktest", icon: "🧪", system_behavior: "exam" },
+  { name: "exam", icon: "📑", system_behavior: "exam" },
+  { name: "assignment", icon: "📝", system_behavior: "assignment" },
 ] as const;
 
 export const EXAM_TASK_TYPES = ["test", "mocktest", "exam"];

@@ -5,11 +5,22 @@ import {
   ChevronDown,
   LayoutGrid,
   List,
+  MoreVertical,
+  Pencil,
+  Trash2,
   CalendarDays,
+  Archive,
+  Check,
 } from "lucide-react";
 import { format, isPast, isToday } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useStreams } from "@/hooks/useStreams";
 import { useSubjects } from "@/hooks/useSubjects";
@@ -55,27 +66,45 @@ export function GoalDetailContent({ goalId }: GoalDetailContentProps) {
   const [selectedStreamId, setSelectedStreamId] = useState<string | null>(null);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
+  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const [taskViewMode, setTaskViewMode] = useState<"grid" | "list">("grid");
   const [dialogState, setDialogState] = useState<DialogState>(null);
+  const [showArchived, setShowArchived] = useState(false); // New Toggle State
+
+  // State for editing task
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  // State for editing hierarchy items
+  const [editingItem, setEditingItem] = useState<{
+    type: "stream" | "subject" | "chapter" | "topic";
+    id: string;
+    data: any;
+  } | null>(null);
 
   // Data hooks
-  const { data: streams = [] } = useStreams(goalId);
-  const streamsHook = useStreams(goalId);
+  const { data: streams = [] } = useStreams(goalId, showArchived);
+  const streamsHook = useStreams(goalId, showArchived);
 
   const activeStreamId = selectedStreamId;
   const { data: subjects = [] } = useSubjects(
     goalId,
-    streams.length > 0 ? activeStreamId : undefined
+    streams.length > 0 ? activeStreamId : undefined,
+    showArchived
   );
-  const subjectsHook = useSubjects(goalId, streams.length > 0 ? activeStreamId : undefined);
+  const subjectsHook = useSubjects(goalId, streams.length > 0 ? activeStreamId : undefined, showArchived);
 
-  const { data: chapters = [] } = useChapters(selectedSubjectId ?? undefined);
-  const chaptersHook = useChapters(selectedSubjectId ?? undefined);
+  const { data: chapters = [] } = useChapters(selectedSubjectId ?? undefined, showArchived);
+  const chaptersHook = useChapters(selectedSubjectId ?? undefined, showArchived);
 
-  const { data: topics = [] } = useTopics(selectedChapterId ?? undefined);
-  const topicsHook = useTopics(selectedChapterId ?? undefined);
+  const { data: topics = [] } = useTopics(selectedChapterId ?? undefined, showArchived);
+  const topicsHook = useTopics(selectedChapterId ?? undefined, showArchived);
 
-  const tasksHook = useTasks({ goalId });
+  const tasksHook = useTasks({
+    goalId,
+    subjectId: selectedSubjectId ?? undefined,
+    chapterId: selectedChapterId ?? undefined,
+    topicId: selectedTopicId ?? undefined,
+    archived: showArchived,
+  });
   const tasks = tasksHook.data ?? [];
 
   // Handlers
@@ -83,21 +112,29 @@ export function GoalDetailContent({ goalId }: GoalDetailContentProps) {
     setSelectedStreamId(streamId === selectedStreamId ? null : streamId);
     setSelectedSubjectId(null);
     setSelectedChapterId(null);
+    setSelectedTopicId(null);
   };
 
   const handleSubjectSelect = (subjectId: string) => {
     setSelectedSubjectId(subjectId === selectedSubjectId ? null : subjectId);
     setSelectedChapterId(null);
+    setSelectedTopicId(null);
   };
 
   const handleChapterSelect = (chapterId: string) => {
     setSelectedChapterId(chapterId === selectedChapterId ? null : chapterId);
+    setSelectedTopicId(null);
+  };
+
+  const handleTopicSelect = (topicId: string) => {
+    setSelectedTopicId(topicId === selectedTopicId ? null : topicId);
   };
 
   const handleAddItem = (
     level: "stream" | "subject" | "chapter" | "topic",
     values: Record<string, any>
   ) => {
+    // ... existing implementation ...
     switch (level) {
       case "stream":
         streamsHook.create.mutate(
@@ -144,8 +181,83 @@ export function GoalDetailContent({ goalId }: GoalDetailContentProps) {
     }
   };
 
+  const handleEditItem = (values: any) => {
+    if (!editingItem) return;
+    const { type, id } = editingItem;
+
+    const callbacks = {
+      onSuccess: () => {
+        toast.success(`${type} updated`);
+        setEditingItem(null);
+      },
+      onError: (e: any) => toast.error(`Failed to update ${type}`),
+    };
+
+    switch (type) {
+      case "stream":
+        streamsHook.update.mutate({ id, ...values } as any, callbacks);
+        break;
+      case "subject":
+        subjectsHook.update.mutate({ id, ...values } as any, callbacks);
+        break;
+      case "chapter":
+        chaptersHook.update.mutate({ id, ...values } as any, callbacks);
+        break;
+      case "topic":
+        topicsHook.update.mutate({ id, ...values } as any, callbacks);
+        break;
+    }
+  };
+
+  const handleDeleteItem = (type: "stream" | "subject" | "chapter" | "topic", id: string) => {
+    if (confirm(`Are you sure you want to delete this ${type}?`)) {
+      switch (type) {
+        case "stream": streamsHook.remove.mutate(id); break;
+        case "subject": subjectsHook.remove.mutate(id); break;
+        case "chapter": chaptersHook.remove.mutate(id); break;
+        case "topic": topicsHook.remove.mutate(id); break;
+      }
+      toast.success(`${type} deleted`);
+    }
+  };
+
+  const handleArchiveItem = (type: "stream" | "subject" | "chapter" | "topic", id: string) => {
+    if (confirm(`Are you sure you want to archive this ${type}? It will be hidden from view.`)) {
+      switch (type) {
+        case "stream": streamsHook.archive.mutate(id); break;
+        case "subject": subjectsHook.archive.mutate(id); break;
+        case "chapter": chaptersHook.archive.mutate(id); break;
+        case "topic": topicsHook.archive.mutate(id); break;
+      }
+      toast.success(`${type} archived`);
+    }
+  };
+
+  const handleToggleTopicComplete = (id: string, currentStatus: boolean) => {
+    topicsHook.toggleComplete.mutate({ id, completed: !currentStatus }, {
+      onSuccess: () => toast.success(`Topic marked ${!currentStatus ? "complete" : "incomplete"}`),
+      onError: (e: any) => toast.error(e.message),
+    });
+  };
+
   return (
     <div className="space-y-6">
+      {/* Top Controls */}
+      <div className="flex justify-end">
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id="showArchived"
+            checked={showArchived}
+            onChange={(e) => setShowArchived(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+          />
+          <label htmlFor="showArchived" className="text-sm text-muted-foreground cursor-pointer select-none">
+            Show Archived
+          </label>
+        </div>
+      </div>
+
       {/* Stream Tabs */}
       {streams.length > 0 && (
         <div className="space-y-2">
@@ -153,48 +265,70 @@ export function GoalDetailContent({ goalId }: GoalDetailContentProps) {
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Streams
             </h3>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1 items-center">
+            {streams.map((stream) => (
+              <div key={stream.stream_id} className="relative group">
+                <button
+                  onClick={() => handleStreamSelect(stream.stream_id)}
+                  className={cn(
+                    "shrink-0 rounded-lg border px-4 py-2 text-sm font-medium transition-colors pr-8",
+                    selectedStreamId === stream.stream_id
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card text-foreground border-border hover:bg-accent",
+                    stream.archived && "opacity-60"
+                  )}
+                >
+                  {stream.name}
+                </button>
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-6 w-6">
+                        <MoreVertical className="h-3 w-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setEditingItem({ type: "stream", id: stream.stream_id, data: stream })}>
+                        <Pencil className="mr-2 h-4 w-4" /> Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleArchiveItem("stream", stream.stream_id)}>
+                        <Archive className="mr-2 h-4 w-4" /> Archive
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDeleteItem("stream", stream.stream_id)} className="text-destructive focus:text-destructive">
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+            ))}
             <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 text-xs text-primary gap-1"
+              variant="outline"
+              className="h-9 px-3 border-dashed text-muted-foreground hover:text-primary hover:border-primary shrink-0"
               onClick={() => setDialogState({ type: "stream" })}
             >
-              <Plus className="h-3.5 w-3.5" /> Add stream
+              <Plus className="h-4 w-4 mr-1" /> Add
             </Button>
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {streams.map((stream) => (
-              <button
-                key={stream.stream_id}
-                onClick={() => handleStreamSelect(stream.stream_id)}
-                className={cn(
-                  "shrink-0 rounded-lg border px-4 py-2 text-sm font-medium transition-colors",
-                  selectedStreamId === stream.stream_id
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-card text-foreground border-border hover:bg-accent"
-                )}
-              >
-                {stream.name}
-              </button>
-            ))}
           </div>
         </div>
       )}
 
       {/* No streams — show add stream button */}
+      {/* No streams — show add stream button */}
       {streams.length === 0 && (
         <div className="flex justify-end">
           <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 text-xs text-primary gap-1"
+            variant="outline"
+            className="border-dashed text-muted-foreground hover:text-primary hover:border-primary"
             onClick={() => setDialogState({ type: "stream" })}
           >
-            <Plus className="h-3.5 w-3.5" /> Add stream
+            <Plus className="h-4 w-4 mr-2" /> Add Stream
           </Button>
         </div>
       )}
 
+      {/* Subjects Section */}
       {/* Subjects Section */}
       <HierarchySection
         title="Subjects"
@@ -204,6 +338,7 @@ export function GoalDetailContent({ goalId }: GoalDetailContentProps) {
           icon: s.icon,
           color: s.color,
         }))}
+        level="subject"
         selectedId={selectedSubjectId}
         onSelect={handleSubjectSelect}
         onAdd={() =>
@@ -212,7 +347,12 @@ export function GoalDetailContent({ goalId }: GoalDetailContentProps) {
             streamId: selectedStreamId,
           })
         }
-        addLabel="Add subject"
+        addLabel="Add Subject"
+        onEdit={(id) => {
+          const subject = subjects.find(s => s.subject_id === id);
+          if (subject) setEditingItem({ type: "subject", id, data: subject });
+        }}
+        onDelete={(id) => handleDeleteItem("subject", id)}
       />
 
       {/* Chapters Section */}
@@ -224,12 +364,18 @@ export function GoalDetailContent({ goalId }: GoalDetailContentProps) {
             name: c.chapter_number ? `Ch ${c.chapter_number}: ${c.name}` : c.name,
             completed: c.completed,
           }))}
+          level="chapter"
           selectedId={selectedChapterId}
           onSelect={handleChapterSelect}
           onAdd={() =>
             setDialogState({ type: "chapter", subjectId: selectedSubjectId })
           }
-          addLabel="Add chapter"
+          addLabel="Add Chapter"
+          onEdit={(id) => {
+            const chapter = chapters.find(c => c.chapter_id === id);
+            if (chapter) setEditingItem({ type: "chapter", id, data: chapter });
+          }}
+          onDelete={(id) => handleDeleteItem("chapter", id)}
         />
       )}
 
@@ -240,43 +386,78 @@ export function GoalDetailContent({ goalId }: GoalDetailContentProps) {
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Topics
             </h3>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 text-xs text-primary gap-1"
-              onClick={() =>
-                setDialogState({ type: "topic", chapterId: selectedChapterId })
-              }
-            >
-              <Plus className="h-3.5 w-3.5" /> Add topic
-            </Button>
           </div>
           {topics.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">
-              No topics yet
-            </p>
+            <div className="flex justify-start">
+              <Button
+                variant="outline"
+                className="h-10 border-dashed text-muted-foreground hover:text-primary hover:border-primary"
+                onClick={() =>
+                  setDialogState({ type: "topic", chapterId: selectedChapterId })
+                }
+              >
+                <Plus className="h-4 w-4 mr-2" /> Add Topic
+              </Button>
+            </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
               {topics.map((topic) => (
-                <div
-                  key={topic.topic_id}
-                  className={cn(
-                    "rounded-lg border px-3 py-2 text-sm",
-                    topic.completed
-                      ? "bg-muted/50 text-muted-foreground line-through"
-                      : "bg-card text-foreground"
-                  )}
-                >
-                  <span className="mr-1.5 text-xs">
-                    {topic.difficulty === "easy"
-                      ? "🟢"
-                      : topic.difficulty === "hard"
-                      ? "🔴"
-                      : "🟡"}
-                  </span>
-                  {topic.name}
+                <div key={topic.topic_id} className="relative group">
+                  <button
+                    onClick={() => handleTopicSelect(topic.topic_id)}
+                    className={cn(
+                      "w-full rounded-lg border px-3 py-2 text-sm text-left transition-colors pr-8",
+                      selectedTopicId === topic.topic_id
+                        ? "bg-accent border-primary/30 text-accent-foreground"
+                        : "bg-card text-foreground hover:bg-accent/50",
+                      topic.completed && "line-through text-muted-foreground",
+                      topic.archived && "opacity-60"
+                    )}
+                  >
+                    <span className="mr-1.5 text-xs">
+                      {topic.difficulty === "easy"
+                        ? "🟢"
+                        : topic.difficulty === "hard"
+                          ? "🔴"
+                          : "🟡"}
+                    </span>
+                    <span className="truncate block">{topic.name}</span>
+                  </button>
+                  <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6">
+                          <MoreVertical className="h-3 w-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleToggleTopicComplete(topic.topic_id, topic.completed)}>
+                          <Check className="mr-2 h-4 w-4" /> {topic.completed ? "Mark Incomplete" : "Mark Complete"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setEditingItem({ type: "topic", id: topic.topic_id, data: topic })}>
+                          <Pencil className="mr-2 h-4 w-4" /> Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleArchiveItem("topic", topic.topic_id)}>
+                          <Archive className="mr-2 h-4 w-4" /> Archive
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDeleteItem("topic", topic.topic_id)} className="text-destructive focus:text-destructive">
+                          <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               ))}
+
+              <Button
+                variant="outline"
+                className="h-auto min-h-[40px] border-dashed text-muted-foreground hover:text-primary hover:border-primary"
+                onClick={() =>
+                  setDialogState({ type: "topic", chapterId: selectedChapterId })
+                }
+              >
+                <Plus className="h-4 w-4 mr-2" /> Add
+              </Button>
             </div>
           )}
         </div>
@@ -330,17 +511,41 @@ export function GoalDetailContent({ goalId }: GoalDetailContentProps) {
         ) : taskViewMode === "grid" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {tasks.map((task) => (
-              <TaskCard key={task.task_id} task={task} />
+              <TaskCard
+                key={task.task_id}
+                task={task}
+                onEdit={() => setEditingTask(task)}
+                onDelete={() => tasksHook.remove.mutate(task.task_id)}
+              />
             ))}
           </div>
         ) : (
           <div className="space-y-2">
             {tasks.map((task) => (
-              <TaskCard key={task.task_id} task={task} compact />
+              <TaskCard
+                key={task.task_id}
+                task={task}
+                compact
+                onEdit={() => setEditingTask(task)}
+                onDelete={() => tasksHook.remove.mutate(task.task_id)}
+              />
             ))}
           </div>
         )}
       </div>
+
+      {/* Edit Item Dialog */}
+      {editingItem && (
+        <HierarchyItemForm
+          key={editingItem.id}
+          open={!!editingItem}
+          onOpenChange={(op) => !op && setEditingItem(null)}
+          level={editingItem.type}
+          defaultValues={editingItem.data}
+          isEditing
+          onSubmit={handleEditItem}
+        />
+      )}
 
       {/* Dialogs */}
       {dialogState?.type === "stream" && (
@@ -375,11 +580,41 @@ export function GoalDetailContent({ goalId }: GoalDetailContentProps) {
           onSubmit={(vals) => handleAddItem("topic", vals)}
         />
       )}
+      {/* Edit Task Dialog */}
+      {editingTask && (
+        <TaskFormDialog
+          key={editingTask.task_id}
+          open={!!editingTask}
+          onOpenChange={(op) => !op && setEditingTask(null)}
+          defaultValues={editingTask}
+          presetGoalId={goalId}
+          presetSubjectId={selectedSubjectId ?? undefined}
+          presetChapterId={selectedChapterId ?? undefined}
+          presetTopicId={selectedTopicId ?? undefined}
+          isEditing
+          onSubmit={(values) => {
+            tasksHook.update.mutate(
+              { id: editingTask.task_id, ...values } as any,
+              {
+                onSuccess: () => {
+                  toast.success("Task updated");
+                  setEditingTask(null);
+                },
+                onError: (e: any) => toast.error(e.message),
+              }
+            );
+          }}
+        />
+      )}
+
       {dialogState?.type === "task" && (
         <TaskFormDialog
           open
           onOpenChange={() => setDialogState(null)}
           presetGoalId={goalId}
+          presetSubjectId={selectedSubjectId ?? undefined}
+          presetChapterId={selectedChapterId ?? undefined}
+          presetTopicId={selectedTopicId ?? undefined}
           onSubmit={(values) => {
             tasksHook.create.mutate(values as Partial<Task>, {
               onSuccess: () => toast.success("Task created!"),
@@ -402,11 +637,16 @@ interface HierarchySectionProps {
     icon?: string;
     color?: string | null;
     completed?: boolean;
+    archived?: boolean;
   }[];
+  level?: "subject" | "chapter";
   selectedId: string | null;
   onSelect: (id: string) => void;
   onAdd: () => void;
   addLabel: string;
+  onEdit?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  onArchive?: (id: string) => void;
 }
 
 function HierarchySection({
@@ -416,6 +656,9 @@ function HierarchySection({
   onSelect,
   onAdd,
   addLabel,
+  onEdit,
+  onDelete,
+  onArchive
 }: HierarchySectionProps) {
   return (
     <div className="space-y-2">
@@ -423,47 +666,77 @@ function HierarchySection({
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {title}
         </h3>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 text-xs text-primary gap-1"
-          onClick={onAdd}
-        >
-          <Plus className="h-3.5 w-3.5" /> {addLabel}
-        </Button>
       </div>
       {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-4 text-center">
-          No {title.toLowerCase()} yet
-        </p>
+        <div className="flex justify-start">
+          <Button
+            variant="outline"
+            className="h-14 w-full sm:w-48 border-dashed text-muted-foreground hover:text-primary hover:border-primary flex flex-col gap-1 items-center justify-center p-4"
+            onClick={onAdd}
+          >
+            <Plus className="h-5 w-5" />
+            <span className="text-xs">{addLabel}</span>
+          </Button>
+        </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
           {items.map((item) => {
             const isSelected = selectedId === item.id;
             return (
-              <button
-                key={item.id}
-                onClick={() => onSelect(item.id)}
-                className={cn(
-                  "flex items-center justify-between rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors text-left",
-                  isSelected
-                    ? "bg-accent border-primary/30 text-accent-foreground"
-                    : "bg-card text-foreground hover:bg-accent/50",
-                  item.completed && "line-through text-muted-foreground"
-                )}
-              >
-                <span className="flex items-center gap-2 min-w-0 truncate">
-                  {item.icon && <span>{item.icon}</span>}
-                  <span className="truncate">{item.name}</span>
-                </span>
-                {isSelected ? (
-                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                )}
-              </button>
+              <div key={item.id} className="relative group h-full">
+                <button
+                  onClick={() => onSelect(item.id)}
+                  className={cn(
+                    "flex items-center justify-between rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors text-left w-full h-full pr-8",
+                    isSelected
+                      ? "bg-accent border-primary/30 text-accent-foreground"
+                      : "bg-card text-foreground hover:bg-accent/50",
+                    item.completed && "line-through text-muted-foreground",
+                    item.archived && "opacity-60"
+                  )}
+                >
+                  <span className="flex items-center gap-2 min-w-0 truncate">
+                    {item.icon && <span>{item.icon}</span>}
+                    <span className="truncate">{item.name}</span>
+                  </span>
+                  {isSelected ? (
+                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                </button>
+
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-6 w-6">
+                        <MoreVertical className="h-3 w-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onEdit?.(item.id)}>
+                        <Pencil className="mr-2 h-4 w-4" /> Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onArchive?.(item.id)}>
+                        <Archive className="mr-2 h-4 w-4" /> Archive
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onDelete?.(item.id)} className="text-destructive focus:text-destructive">
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
             );
           })}
+
+          <Button
+            variant="outline"
+            className="h-full min-h-[46px] border-dashed text-muted-foreground hover:text-primary hover:border-primary flex items-center justify-center gap-2"
+            onClick={onAdd}
+          >
+            <Plus className="h-4 w-4" /> Add
+          </Button>
         </div>
       )}
     </div>
@@ -475,15 +748,37 @@ function HierarchySection({
 function TaskCard({
   task,
   compact = false,
+  onEdit,
+  onDelete,
 }: {
   task: Task;
   compact?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }) {
   const statusInfo = getTaskStatusInfo(task);
 
+  const actions = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-6 w-6 p-0">
+          <MoreVertical className="h-3 w-3" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={onEdit}>
+          <Pencil className="mr-2 h-3.5 w-3.5" /> Edit
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+          <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   if (compact) {
     return (
-      <div className="flex items-center gap-3 rounded-lg border bg-card px-3 py-2">
+      <div className="flex items-center gap-3 rounded-lg border bg-card px-3 py-2 group">
         <div
           className="h-3 w-3 rounded-full shrink-0"
           style={{ background: statusInfo.color }}
@@ -492,18 +787,27 @@ function TaskCard({
         <span className="text-xs text-muted-foreground shrink-0">
           {statusInfo.label}
         </span>
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+          {actions}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex items-start gap-3 rounded-lg border bg-card p-3">
+    <div className="flex items-start gap-3 rounded-lg border bg-card p-3 group">
       <div
         className="h-4 w-4 rounded-full shrink-0 mt-0.5"
         style={{ background: statusInfo.color }}
       />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium truncate">{task.name}</p>
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-sm font-medium truncate">{task.name}</p>
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity -mt-1 -mr-1">
+            {actions}
+          </div>
+        </div>
+
         <div className="flex items-center gap-2 mt-1">
           <span className="text-xs text-muted-foreground">{statusInfo.label}</span>
           {task.scheduled_date && (
@@ -517,3 +821,5 @@ function TaskCard({
     </div>
   );
 }
+
+

@@ -11,7 +11,10 @@ import {
   CalendarDays,
   ArrowRight,
   Play,
+  X,
 } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
+import { format, parseISO } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,7 +35,6 @@ import { cn } from "@/lib/utils";
 import { EXAM_TASK_TYPES, PRIORITY_PRESETS } from "@/types/database";
 import type { Task } from "@/types/database";
 import { SubtaskList } from "./SubtaskList";
-import { format } from "date-fns";
 
 interface TaskCardProps {
   task: Task;
@@ -41,6 +43,7 @@ interface TaskCardProps {
   onPostpone: (taskId: string, date: string) => void;
   onArchive: (taskId: string) => void;
   onDelete: (taskId: string) => void;
+  onUpdate: (task: Task) => void;
   selected?: boolean;
   onSelect?: (taskId: string) => void;
 }
@@ -52,13 +55,14 @@ export function TaskCard({
   onPostpone,
   onArchive,
   onDelete,
+  onUpdate,
   selected,
   onSelect,
 }: TaskCardProps) {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
   const [postponeOpen, setPostponeOpen] = useState(false);
-  const [postponeDate, setPostponeDate] = useState("");
+  const [postponeDate, setPostponeDate] = useState<Date | undefined>(undefined);
   const isDone = task.status === "done";
   const isExam = EXAM_TASK_TYPES.includes(task.task_type);
 
@@ -145,10 +149,24 @@ export function TaskCard({
 
             <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
               {task.scheduled_date && (
-                <span className="flex items-center gap-1">
-                  <CalendarDays className="h-3 w-3" />
-                  {format(new Date(task.scheduled_date), "MMM d")}
-                </span>
+                <div className="flex items-center gap-2">
+                  <DatePicker
+                    date={task.scheduled_date ? parseISO(task.scheduled_date) : undefined}
+                    onSelect={(d) => onUpdate({ ...task, scheduled_date: d ? format(d, "yyyy-MM-dd") : null })}
+                    className="w-[180px] h-8 text-xs"
+                    placeholder="Schedule Date"
+                  />
+                  {task.scheduled_date && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => onUpdate({ ...task, scheduled_date: null })}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
               )}
               {task.estimated_duration && (
                 <span className="flex items-center gap-1">
@@ -254,20 +272,22 @@ export function TaskCard({
           <PopoverContent className="w-auto p-3" align="end">
             <div className="space-y-2">
               <p className="text-sm font-medium">Postpone to</p>
-              <Input
-                type="date"
-                value={postponeDate}
-                min={new Date().toISOString().split("T")[0]}
-                onChange={(e) => setPostponeDate(e.target.value)}
+              <DatePicker
+                date={postponeDate}
+                onSelect={setPostponeDate}
+                disabled={{ before: new Date() }}
+                className="w-full"
               />
               <Button
                 size="sm"
                 className="w-full"
                 disabled={!postponeDate}
                 onClick={() => {
-                  onPostpone(task.task_id, postponeDate);
-                  setPostponeOpen(false);
-                  setPostponeDate("");
+                  if (postponeDate) {
+                    onPostpone(task.task_id, format(postponeDate, "yyyy-MM-dd"));
+                    setPostponeOpen(false);
+                    setPostponeDate(undefined);
+                  }
                 }}
               >
                 Postpone

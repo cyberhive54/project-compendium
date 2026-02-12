@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
@@ -71,6 +72,40 @@ export function StudySessionsSettings() {
     enabled: !!user,
   });
 
+  // Day start time logic
+  const [dayStart, setDayStart] = useState(0);
+  const [updatingStart, setUpdatingStart] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      supabase
+        .from("user_profiles")
+        .select("start_of_day_hour")
+        .eq("user_id", user.id)
+        .single()
+        .then(({ data }) => {
+          if (data) setDayStart(data.start_of_day_hour ?? 0);
+        });
+    }
+  }, [user]);
+
+  const updateDayStart = async (hour: number) => {
+    if (!user) return;
+    setUpdatingStart(true);
+    const { error } = await supabase
+      .from("user_profiles")
+      .update({ start_of_day_hour: hour })
+      .eq("user_id", user.id);
+
+    if (error) {
+      toast.error("Failed to update day start time");
+    } else {
+      setDayStart(hour);
+      toast.success("Day start time updated");
+    }
+    setUpdatingStart(false);
+  };
+
   const openCreate = () => {
     setEditingId(null);
     setForm({ ...emptyForm, color: DEFAULT_COLORS[sessions.length % DEFAULT_COLORS.length] });
@@ -103,11 +138,68 @@ export function StudySessionsSettings() {
       name: form.name.trim(),
       start_time: form.start_time + ":00",
       end_time: form.end_time + ":00",
-      is_overnight: form.is_overnight,
+      // is_overnight is generated always, so we don't send it
       days_of_week: form.days_of_week,
       color: form.color,
       is_active: form.is_active,
     };
+
+    // Check for overlap
+    const newStartMins = parseInt(form.start_time.split(":")[0]) * 60 + parseInt(form.start_time.split(":")[1]);
+    const newEndMins = parseInt(form.end_time.split(":")[0]) * 60 + parseInt(form.end_time.split(":")[1]);
+
+    // Handle overnight for the new session - simplistic approach for now:
+    // If overnight, we treat it as two intervals: [start, 1440] and [0, end]
+    // But since days_of_week usually means "start day", specific overlap logic is tricky.
+    // We will stick to the requested "same day of week same hour" check.
+
+    const hasOverlap = sessions.some((s) => {
+      if (editingId && s.session_config_id === editingId) return false;
+
+      const commonDays = s.days_of_week?.filter(d => form.days_of_week.includes(d));
+      if (!commonDays || commonDays.length === 0) return false;
+
+      const sStart = parseInt(s.start_time.split(":")[0]) * 60 + parseInt(s.start_time.split(":")[1]);
+      const sEnd = parseInt(s.end_time.split(":")[0]) * 60 + parseInt(s.end_time.split(":")[1]);
+
+      // Helper to check range overlap
+      const checkRangeOverlap = (start1: number, end1: number, start2: number, end2: number) => {
+        return Math.max(start1, start2) < Math.min(end1, end2);
+      };
+
+      // Define intervals for new session
+      const newIntervals = [];
+      if (newStartMins > newEndMins) {
+        newIntervals.push([newStartMins, 24 * 60], [0, newEndMins]);
+      } else {
+        newIntervals.push([newStartMins, newEndMins]);
+      }
+
+      // Define intervals for existing session
+      const sIntervals = [];
+      if (sStart > sEnd) {
+        sIntervals.push([sStart, 24 * 60], [0, sEnd]);
+      } else {
+        sIntervals.push([sStart, sEnd]);
+      }
+
+      // Check all combinations
+      for (const [nS, nE] of newIntervals) {
+        for (const [eS, eE] of sIntervals) {
+          if (checkRangeOverlap(nS, nE, eS, eE)) {
+            // Found overlap
+            toast.error(`Session overlaps with "${s.name}" on shared days.`);
+            return true;
+          }
+        }
+      }
+      return false;
+    });
+
+    if (hasOverlap) {
+      setSaving(false);
+      return;
+    }
 
     let error;
     if (editingId) {
@@ -153,11 +245,28 @@ export function StudySessionsSettings() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base">Study Sessions</CardTitle>
-        <Button size="sm" onClick={openCreate}>
-          <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Session
-        </Button>
+      <CardHeader>
+        <div className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">Study Sessions</CardTitle>
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Session
+          </Button>
+        </div>
+        <div className="pt-2 flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground whitespace-nowrap">Day starts at:</Label>
+          <select
+            className="h-7 w-20 rounded-md border border-input bg-background px-2 py-1 text-xs"
+            value={dayStart}
+            onChange={(e) => updateDayStart(parseInt(e.target.value))}
+            disabled={updatingStart}
+          >
+            {Array.from({ length: 24 }).map((_, i) => (
+              <option key={i} value={i}>
+                {i.toString().padStart(2, "0")}:00
+              </option>
+            ))}
+          </select>
+        </div>
       </CardHeader>
       <CardContent>
         {sessions.length === 0 ? (
@@ -218,6 +327,9 @@ export function StudySessionsSettings() {
               <DialogTitle>
                 {editingId ? "Edit Session" : "New Study Session"}
               </DialogTitle>
+              <DialogDescription>
+                Configure the time and days for this study session.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-1.5">
@@ -281,9 +393,8 @@ export function StudySessionsSettings() {
                   {DEFAULT_COLORS.map((c) => (
                     <button
                       key={c}
-                      className={`h-6 w-6 rounded-full border-2 transition-transform ${
-                        form.color === c ? "border-foreground scale-110" : "border-transparent"
-                      }`}
+                      className={`h-6 w-6 rounded-full border-2 transition-transform ${form.color === c ? "border-foreground scale-110" : "border-transparent"
+                        }`}
                       style={{ backgroundColor: c }}
                       onClick={() => setForm({ ...form, color: c })}
                     />

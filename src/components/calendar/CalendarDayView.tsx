@@ -1,3 +1,4 @@
+import { useRef, useEffect, useMemo } from "react";
 import { format, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, Clock, Play, CalendarClock } from "lucide-react";
@@ -14,9 +15,12 @@ interface DayViewProps {
   sessions: StudySessionConfig[];
   onMarkDone: (taskId: string) => void;
   onStartTimer: (taskId: string) => void;
+  onPostpone?: (taskId: string) => void;
+  /** If true, trim hours outside content range */
+  compact?: boolean;
+  /** Start-of-day hour from user settings (default 0) */
+  startOfDayHour?: number;
 }
-
-const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 function getHourForTask(task: Task): number {
   if (task.scheduled_time_slot) {
@@ -42,7 +46,11 @@ export function CalendarDayView({
   sessions,
   onMarkDone,
   onStartTimer,
+  onPostpone,
+  compact = false,
+  startOfDayHour = 0,
 }: DayViewProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
   const dayKey = format(currentDate, "yyyy-MM-dd");
   const today = isToday(currentDate);
   const dayOfWeek = currentDate.getDay() === 0 ? 7 : currentDate.getDay();
@@ -69,6 +77,32 @@ export function CalendarDayView({
     }
   }
 
+  // Compute visible hour range
+  const visibleHours = useMemo(() => {
+    const allHours = Array.from({ length: 24 }, (_, i) => i);
+    if (!compact) return allHours;
+
+    // In compact mode, only show hours that have tasks (not full session ranges)
+    let lastHour = startOfDayHour;
+    for (const h of Object.keys(tasksByHour)) lastHour = Math.max(lastHour, Number(h));
+    // Include current hour if today
+    if (today) lastHour = Math.max(lastHour, new Date().getHours());
+
+    const endHour = Math.min(23, lastHour + 1);
+    return allHours.filter((h) => h >= startOfDayHour && h <= endHour);
+  }, [compact, startOfDayHour, tasks, today]);
+
+  // Auto-scroll to current hour on mount
+  useEffect(() => {
+    if (!scrollRef.current || !today) return;
+    const currentHour = new Date().getHours();
+    const hourIdx = visibleHours.indexOf(currentHour);
+    if (hourIdx >= 0) {
+      const rowHeight = 48;
+      scrollRef.current.scrollTop = Math.max(0, hourIdx * rowHeight - 48);
+    }
+  }, [today, visibleHours]);
+
   return (
     <div className="rounded-lg border bg-card overflow-hidden">
       {/* Day header */}
@@ -90,8 +124,8 @@ export function CalendarDayView({
       </div>
 
       {/* Hourly grid */}
-      <div className="divide-y max-h-[600px] overflow-y-auto">
-        {HOURS.map((hour) => {
+      <div ref={scrollRef} className={cn("divide-y overflow-y-auto", compact ? "max-h-[400px]" : "max-h-[600px]")}>
+        {visibleHours.map((hour) => {
           const hourTasks = tasksByHour[hour] ?? [];
           const session = sessionHours[hour];
           const hourLabel = format(new Date(2000, 0, 1, hour), "h a");
@@ -137,11 +171,23 @@ export function CalendarDayView({
                     </div>
                     {task.status !== "done" && (
                       <div className="flex gap-0.5 shrink-0">
+                        {onPostpone && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => onPostpone(task.task_id)}
+                            title="Postpone"
+                          >
+                            <CalendarClock className="h-3 w-3" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6"
                           onClick={() => onStartTimer(task.task_id)}
+                          title="Start Timer"
                         >
                           <Play className="h-3 w-3" />
                         </Button>
@@ -150,6 +196,7 @@ export function CalendarDayView({
                           size="icon"
                           className="h-6 w-6 text-success hover:text-success"
                           onClick={() => onMarkDone(task.task_id)}
+                          title="Mark Done"
                         >
                           <CheckCircle2 className="h-3 w-3" />
                         </Button>

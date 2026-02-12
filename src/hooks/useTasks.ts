@@ -55,7 +55,12 @@ export function useTasks(filters?: TaskFilters) {
       if (error) throw error;
       return data as Task;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["today-tasks"] });
+      qc.invalidateQueries({ queryKey: ["calendar-tasks"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    },
   });
 
   const update = useMutation({
@@ -69,11 +74,15 @@ export function useTasks(filters?: TaskFilters) {
       if (error) throw error;
       return data as Task;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["today-tasks"] });
+      qc.invalidateQueries({ queryKey: ["calendar-tasks"] });
+    },
   });
 
   const markDone = useMutation({
-    mutationFn: async (taskId: string) => {
+    mutationFn: async ({ taskId, ...completionData }: { taskId: string } & Partial<Task>) => {
       // Get task data before marking done (for XP calculation)
       const { data: taskData } = await supabase
         .from("tasks")
@@ -81,12 +90,23 @@ export function useTasks(filters?: TaskFilters) {
         .eq("task_id", taskId)
         .single();
 
+      // Prepare update object with completion status and timestamp
+      // NOTE: We must exclude generated columns (skipped_questions, total_marks) from the update
+      const {
+        skipped_questions,
+        total_marks,
+        ...safeCompletionData
+      } = completionData;
+
+      const updatePayload: any = {
+        status: "done",
+        completed_at: new Date().toISOString(),
+        ...safeCompletionData,
+      };
+
       const { error } = await supabase
         .from("tasks")
-        .update({
-          status: "done",
-          completed_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq("task_id", taskId);
       if (error) throw error;
 
@@ -124,7 +144,12 @@ export function useTasks(filters?: TaskFilters) {
         .eq("task_id", taskId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["today-tasks"] });
+      qc.invalidateQueries({ queryKey: ["calendar-tasks"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    },
   });
 
   const archive = useMutation({
@@ -135,7 +160,11 @@ export function useTasks(filters?: TaskFilters) {
         .eq("task_id", taskId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["today-tasks"] });
+      qc.invalidateQueries({ queryKey: ["calendar-tasks"] });
+    },
   });
 
   const bulkPostpone = useMutation({
@@ -151,7 +180,12 @@ export function useTasks(filters?: TaskFilters) {
         .in("task_id", taskIds);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["today-tasks"] });
+      qc.invalidateQueries({ queryKey: ["calendar-tasks"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    },
   });
 
   const bulkArchive = useMutation({
@@ -162,7 +196,11 @@ export function useTasks(filters?: TaskFilters) {
         .in("task_id", taskIds);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["today-tasks"] });
+      qc.invalidateQueries({ queryKey: ["calendar-tasks"] });
+    },
   });
 
   const remove = useMutation({
@@ -173,7 +211,11 @@ export function useTasks(filters?: TaskFilters) {
         .eq("task_id", taskId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["today-tasks"] });
+      qc.invalidateQueries({ queryKey: ["calendar-tasks"] });
+    },
   });
 
   return {

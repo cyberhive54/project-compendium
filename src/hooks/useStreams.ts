@@ -2,22 +2,29 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import type { Stream } from "@/types/database";
 
-export function useStreams(goalId?: string, showArchived = false) {
+export function useStreams(goalId?: string | null, showArchived = false) {
   const qc = useQueryClient();
 
   const query = useQuery({
     queryKey: ["streams", goalId, showArchived],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("streams")
         .select("*")
-        .eq("goal_id", goalId!)
-        .eq("archived", showArchived)
         .order("created_at", { ascending: true });
+
+      if (!showArchived) {
+        q = q.eq("archived", false);
+      }
+
+      if (goalId) {
+        q = q.eq("goal_id", goalId);
+      }
+
+      const { data, error } = await q;
       if (error) throw error;
       return data as Stream[];
     },
-    enabled: !!goalId,
   });
 
   const create = useMutation({

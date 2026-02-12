@@ -2,22 +2,29 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import type { Topic } from "@/types/database";
 
-export function useTopics(chapterId?: string, showArchived = false) {
+export function useTopics(chapterId?: string | null, showArchived = false) {
   const qc = useQueryClient();
 
   const query = useQuery({
     queryKey: ["topics", chapterId, showArchived],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("topics")
         .select("*")
-        .eq("chapter_id", chapterId!)
-        .eq("archived", showArchived)
         .order("created_at", { ascending: true });
+
+      if (!showArchived) {
+        q = q.eq("archived", false);
+      }
+
+      if (chapterId) {
+        q = q.eq("chapter_id", chapterId);
+      }
+
+      const { data, error } = await q;
       if (error) throw error;
       return data as Topic[];
     },
-    enabled: !!chapterId,
   });
 
   const create = useMutation({

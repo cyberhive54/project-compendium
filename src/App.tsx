@@ -21,13 +21,34 @@ import HolidaysPage from "./pages/HolidaysPage";
 import TasksPage from "./pages/TasksPage";
 import TaskDetailPage from "./pages/TaskDetailPage";
 import JournalPage from "./pages/JournalPage";
+import HierarchyPage from "./pages/HierarchyPage";
+
+import FeedbackPage from "./pages/FeedbackPage";
+import HelpPage from "./pages/HelpPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import LandingPage from "./pages/LandingPage";
 import NotFound from "./pages/NotFound";
+import FeaturesPage from "./pages/FeaturesPage";
+import ContactPage from "./pages/ContactPage";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
+
+import AdminLayout from "./pages/admin/AdminLayout";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminSystemHealth from "./pages/admin/AdminSystemHealth";
+import AdminBadges from "./pages/admin/AdminBadges";
+import AdminBadgesDocs from "./pages/admin/AdminBadgesDocs";
+import SyllabusDocs from "./pages/admin/SyllabusDocs";
+import FeedbackManagement from "./pages/admin/FeedbackManagement";
+import AdminContactPage from "./pages/admin/AdminContactPage";
+import AdminNotesPage from "./pages/admin/AdminNotesPage";
+import DevDocsPage from "./pages/admin/DevDocsPage";
+
 import { Loader2 } from "lucide-react";
+import MenuPage from "./pages/MenuPage";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +82,9 @@ const App = () => (
             <Routes>
               {/* Public routes */}
               <Route path="/" element={<HomeRoute />} />
+              <Route path="/features" element={<FeaturesPage />} />
+              <Route path="/contact" element={<ContactPage />} />
+              <Route path="/privacy" element={<PrivacyPolicyPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -91,6 +115,25 @@ const App = () => (
                 <Route path="/tasks" element={<TasksPage />} />
                 <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
                 <Route path="/journal" element={<JournalPage />} />
+                <Route path="/hierarchy" element={<HierarchyPage />} />
+
+                <Route path="/feedback" element={<FeedbackPage />} />
+                <Route path="/help" element={<HelpPage />} />
+                <Route path="/menu" element={<MenuPage />} />
+              </Route>
+
+              {/* Admin Routes */}
+              <Route path="/admin" element={<AdminLayout />}>
+                <Route index element={<AdminDashboard />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="health" element={<AdminSystemHealth />} />
+                <Route path="badges" element={<AdminBadges />} />
+                <Route path="badges/docs" element={<AdminBadgesDocs />} />
+                <Route path="syllabus/docs" element={<SyllabusDocs />} />
+                <Route path="feedback" element={<FeedbackManagement />} />
+                <Route path="contact-us" element={<AdminContactPage />} />
+                <Route path="notes" element={<AdminNotesPage />} />
+                <Route path="docs-dev" element={<DevDocsPage />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
@@ -99,7 +142,7 @@ const App = () => (
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
-  </ThemeProvider>
+  </ThemeProvider >
 );
 
 export default App;

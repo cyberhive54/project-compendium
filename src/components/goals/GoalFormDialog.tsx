@@ -26,6 +26,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
+import { format, parseISO } from "date-fns";
 import { GOAL_TYPES } from "@/types/database";
 import { useProjects } from "@/hooks/useProjects";
 import type { Goal } from "@/types/database";
@@ -36,6 +38,8 @@ const goalSchema = z.object({
   description: z.string().max(500).optional(),
   goal_type: z.enum(["board", "competitive", "semester", "custom"]),
   target_date: z.string().optional(),
+  start_date: z.string().optional(),
+  end_date: z.string().optional(),
   color: z.string().default("#10B981"),
   icon: z.string().default("🎯"),
 });
@@ -69,6 +73,8 @@ export function GoalFormDialog({
       description: defaultValues?.description ?? "",
       goal_type: defaultValues?.goal_type ?? "custom",
       target_date: defaultValues?.target_date ?? "",
+      start_date: defaultValues?.start_date ?? "",
+      end_date: defaultValues?.end_date ?? "",
       color: defaultValues?.color ?? "#10B981",
       icon: defaultValues?.icon ?? "🎯",
     },
@@ -83,6 +89,8 @@ export function GoalFormDialog({
         description: defaultValues?.description ?? "",
         goal_type: defaultValues?.goal_type ?? "custom",
         target_date: defaultValues?.target_date ?? "",
+        start_date: defaultValues?.start_date ?? "",
+        end_date: defaultValues?.end_date ?? "",
         color: defaultValues?.color ?? "#10B981",
         icon: defaultValues?.icon ?? "🎯",
       });
@@ -95,6 +103,8 @@ export function GoalFormDialog({
       ...rest,
       project_id: project_id === "__none__" ? null : project_id,
       target_date: rest.target_date || null,
+      start_date: rest.start_date || null,
+      end_date: rest.end_date || null,
     });
     form.reset();
     onOpenChange(false);
@@ -188,6 +198,45 @@ export function GoalFormDialog({
               )}
             />
 
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="start_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Start Date</FormLabel>
+                    <FormControl>
+                      <DatePicker
+                        date={field.value ? parseISO(field.value) : undefined}
+                        onSelect={(date) =>
+                          field.onChange(date ? format(date, "yyyy-MM-dd") : "")
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="end_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>End Date</FormLabel>
+                    <FormControl>
+                      <DatePicker
+                        date={field.value ? parseISO(field.value) : undefined}
+                        onSelect={(date) =>
+                          field.onChange(date ? format(date, "yyyy-MM-dd") : "")
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <FormField
               control={form.control}
               name="target_date"
@@ -195,7 +244,13 @@ export function GoalFormDialog({
                 <FormItem>
                   <FormLabel>Target Date (optional)</FormLabel>
                   <FormControl>
-                    <Input type="date" {...field} />
+                    <DatePicker
+                      date={field.value ? parseISO(field.value) : undefined}
+                      onSelect={(date) =>
+                        field.onChange(date ? format(date, "yyyy-MM-dd") : "")
+                      }
+                      className="w-full"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -9,7 +9,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, Archive, ListFilter, X } from "lucide-react";
+import { CalendarDays, Archive, ListFilter, X, Search, Filter } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
+import { format, parseISO } from "date-fns";
 import { TaskCard } from "./TaskCard";
 import { useTasks } from "@/hooks/useTasks";
 import { useGoals } from "@/hooks/useGoals";
@@ -28,11 +30,11 @@ export function TaskListView({ goalId, onEditTask }: TaskListViewProps) {
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [dateFilter, setDateFilter] = useState<string>("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [bulkPostponeDate, setBulkPostponeDate] = useState("");
+  const [bulkPostponeDate, setBulkPostponeDate] = useState<string>("");
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const { data: goals = [] } = useGoals();
-  const { data: tasks = [], markDone, postpone, archive, bulkPostpone, bulkArchive, remove } =
+  const { data: tasks = [], update, markDone, postpone, archive, bulkPostpone, bulkArchive, remove } =
     useTasks({
       goalId: goalFilter || undefined,
       status: statusFilter || undefined,
@@ -108,11 +110,11 @@ export function TaskListView({ goalId, onEditTask }: TaskListViewProps) {
           </SelectContent>
         </Select>
 
-        <Input
-          type="date"
-          value={dateFilter}
-          onChange={(e) => setDateFilter(e.target.value)}
+        <DatePicker
+          date={dateFilter ? parseISO(dateFilter) : undefined}
+          onSelect={(d) => setDateFilter(d ? format(d, "yyyy-MM-dd") : "")}
           className="w-[150px] h-8 text-xs"
+          placeholder="Filter by Date"
         />
 
         {hasActiveFilters && (
@@ -139,12 +141,11 @@ export function TaskListView({ goalId, onEditTask }: TaskListViewProps) {
             {selectedIds.length} selected
           </Badge>
           <div className="flex items-center gap-1 ml-auto">
-            <Input
-              type="date"
-              value={bulkPostponeDate}
-              min={new Date().toISOString().split("T")[0]}
-              onChange={(e) => setBulkPostponeDate(e.target.value)}
+            <DatePicker
+              date={bulkPostponeDate ? parseISO(bulkPostponeDate) : undefined}
+              onSelect={(d) => setBulkPostponeDate(d ? format(d, "yyyy-MM-dd") : "")}
               className="w-[140px] h-7 text-xs"
+              placeholder="Postpone Date"
             />
             <Button
               size="sm"
@@ -182,6 +183,7 @@ export function TaskListView({ goalId, onEditTask }: TaskListViewProps) {
             key={task.task_id}
             task={task}
             onEdit={onEditTask}
+            onUpdate={(updatedTask) => update.mutate({ id: updatedTask.task_id, ...updatedTask })}
             onMarkDone={(id) =>
               markDone.mutate(id, {
                 onSuccess: () => toast.success("Task completed! 🎉"),

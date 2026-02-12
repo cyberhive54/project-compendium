@@ -29,7 +29,6 @@ function TopicRow({ topic, onEdit, onArchive }: {
   onEdit: (t: Topic) => void;
   onArchive: (id: string) => void;
 }) {
-  const { toggleComplete } = useTopics(topic.chapter_id);
   const difficultyColors = {
     easy: "bg-success/10 text-success",
     medium: "bg-warning/10 text-warning",
@@ -38,18 +37,13 @@ function TopicRow({ topic, onEdit, onArchive }: {
 
   return (
     <div className="flex items-center gap-2 py-1.5 pl-2 pr-1 rounded-md hover:bg-muted/50 group">
-      <button
-        onClick={() =>
-          toggleComplete.mutate({ id: topic.topic_id, completed: !topic.completed })
-        }
-        className="shrink-0"
-      >
+      <div className="shrink-0">
         {topic.completed ? (
           <CheckCircle2 className="h-4 w-4 text-success" />
         ) : (
           <Circle className="h-4 w-4 text-muted-foreground" />
         )}
-      </button>
+      </div>
       <span
         className={cn(
           "flex-1 text-sm truncate",
@@ -88,7 +82,6 @@ function ChapterSection({ chapter, onEdit, onArchive }: {
   const [archiveTarget, setArchiveTarget] = useState<{ id: string; name: string } | null>(null);
   const { data: topics = [] } = useTopics(expanded ? chapter.chapter_id : undefined);
   const topicsHook = useTopics(chapter.chapter_id);
-  const { toggleComplete } = useChapters(chapter.subject_id);
 
   const totalWeightage = topics.reduce((s, t) => s + Number(t.weightage), 0);
 
@@ -102,21 +95,13 @@ function ChapterSection({ chapter, onEdit, onArchive }: {
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
           )}
         </button>
-        <button
-          onClick={() =>
-            toggleComplete.mutate({
-              id: chapter.chapter_id,
-              completed: !chapter.completed,
-            })
-          }
-          className="shrink-0"
-        >
+        <div className="shrink-0">
           {chapter.completed ? (
             <CheckCircle2 className="h-4 w-4 text-success" />
           ) : (
             <Circle className="h-4 w-4 text-muted-foreground" />
           )}
-        </button>
+        </div>
         <span
           className={cn(
             "flex-1 text-sm font-medium truncate cursor-pointer",

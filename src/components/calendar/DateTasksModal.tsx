@@ -26,6 +26,7 @@ interface DateTasksModalProps {
   onPostpone: (taskId: string, newDate: string) => void;
   onStartTimer: (taskId: string) => void;
   onAddTask: () => void;
+  hideAddButton?: boolean;
 }
 
 const statusGroups: Array<{ key: string; label: string; statuses: string[] }> = [
@@ -44,6 +45,7 @@ export function DateTasksModal({
   onPostpone,
   onStartTimer,
   onAddTask,
+  hideAddButton,
 }: DateTasksModalProps) {
   const [postponeTaskId, setPostponeTaskId] = useState<string | null>(null);
 
@@ -222,14 +224,16 @@ export function DateTasksModal({
         )}
 
         {/* Add task CTA */}
-        <Button
-          variant="outline"
-          className="w-full mt-2"
-          onClick={onAddTask}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Task for {format(date, "MMM d")}
-        </Button>
+        {!hideAddButton && (
+          <Button
+            variant="outline"
+            className="w-full mt-2"
+            onClick={onAddTask}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Task for {format(date, "MMM d")}
+          </Button>
+        )}
       </DialogContent>
     </Dialog>
   );

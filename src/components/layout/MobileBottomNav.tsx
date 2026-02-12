@@ -4,6 +4,9 @@ import {
   Timer,
   BarChart3,
   User,
+  ClipboardList,
+  Grip,
+  Settings,
 } from "lucide-react";
 import { NavLink as RouterNavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -11,9 +14,10 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Calendar", url: "/calendar", icon: CalendarDays },
+  { title: "Tasks", url: "/tasks", icon: ClipboardList },
   { title: "Timer", url: "/timer", icon: Timer },
-  { title: "Analytics", url: "/analytics", icon: BarChart3 },
-  { title: "Profile", url: "/settings", icon: User },
+  { title: "Settings", url: "/settings", icon: Settings },
+  { title: "Menu", url: "/menu", icon: Grip },
 ];
 
 export function MobileBottomNav() {

@@ -16,21 +16,30 @@ export interface DaySummary {
   holidayReason?: string;
 }
 
-export function useCalendarTasks(startDate: string, endDate: string) {
+export function useCalendarTasks(startDate: string, endDate: string, filters?: { projectId?: string | null; goalId?: string | null }) {
   const { user } = useAuth();
 
   return useQuery({
-    queryKey: ["calendar-tasks", user?.id, startDate, endDate],
+    queryKey: ["calendar-tasks", user?.id, startDate, endDate, filters],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("tasks")
-        .select("*, subjects:subject_id(color, name)")
+        .select("*, subjects:subject_id(color, name), goals!inner(project_id)")
         .eq("user_id", user!.id)
         .eq("archived", false)
         .gte("scheduled_date", startDate)
         .lte("scheduled_date", endDate)
         .order("priority_number", { ascending: false });
 
+      if (filters?.goalId && filters.goalId !== "all") {
+        q = q.eq("goal_id", filters.goalId);
+      }
+
+      if (filters?.projectId && filters.projectId !== "all") {
+        q = q.eq("goals.project_id", filters.projectId);
+      }
+
+      const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as (Task & { subjects?: { color: string; name: string } | null })[];
     },

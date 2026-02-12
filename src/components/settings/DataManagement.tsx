@@ -43,11 +43,68 @@ export function DataManagement() {
     try {
       const backup: Record<string, any[]> = {};
       for (const table of BACKUP_TABLES) {
-        const { data } = await supabase
-          .from(table)
-          .select("*")
-          .eq("user_id", user.id);
-        backup[table] = data ?? [];
+        let query = supabase.from(table).select("*");
+
+        // Handle tables that don't have user_id directly
+        if (table === "subtasks") {
+          // Join with tasks
+          const { data } = await supabase
+            .from(table)
+            .select("*, tasks!inner(user_id)")
+            .eq("tasks.user_id", user.id);
+          // Remove the joined parent data to keep backup clean
+          const cleanData = data?.map(d => {
+            const { tasks, ...rest } = d;
+            return rest;
+          });
+          backup[table] = cleanData ?? [];
+        } else if (table === "streams") {
+          const { data } = await supabase
+            .from(table)
+            .select("*, goals!inner(user_id)")
+            .eq("goals.user_id", user.id);
+          const cleanData = data?.map(d => {
+            const { goals, ...rest } = d;
+            return rest;
+          });
+          backup[table] = cleanData ?? [];
+        } else if (table === "subjects") {
+          const { data } = await supabase
+            .from(table)
+            .select("*, goals!inner(user_id)")
+            .eq("goals.user_id", user.id);
+          const cleanData = data?.map(d => {
+            const { goals, ...rest } = d;
+            return rest;
+          });
+          backup[table] = cleanData ?? [];
+        } else if (table === "chapters") {
+          // Join with subjects -> goals
+          const { data } = await supabase
+            .from(table)
+            .select("*, subjects!inner(goals!inner(user_id))")
+            .eq("subjects.goals.user_id", user.id);
+          const cleanData = data?.map(d => {
+            const { subjects, ...rest } = d;
+            return rest;
+          });
+          backup[table] = cleanData ?? [];
+        } else if (table === "topics") {
+          // Join with chapters -> subjects -> goals
+          const { data } = await supabase
+            .from(table)
+            .select("*, chapters!inner(subjects!inner(goals!inner(user_id)))")
+            .eq("chapters.subjects.goals.user_id", user.id);
+          const cleanData = data?.map(d => {
+            const { chapters, ...rest } = d;
+            return rest;
+          });
+          backup[table] = cleanData ?? [];
+        } else {
+          // Standard query for tables with user_id
+          const { data } = await query.eq("user_id", user.id);
+          backup[table] = data ?? [];
+        }
       }
 
       // Encrypt with Web Crypto API

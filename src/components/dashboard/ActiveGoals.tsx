@@ -73,7 +73,7 @@ export function ActiveGoals() {
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
-        {goals.slice(0, 5).map((goal: Goal) => {
+        {goals.slice(0, 3).map((goal: Goal) => {
           const goalTasks = allTasks?.filter((t) => t.goal_id === goal.goal_id) ?? [];
           const doneTasks = goalTasks.filter((t) => t.status === "done");
           const progress = goalTasks.length > 0

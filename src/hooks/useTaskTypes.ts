@@ -29,6 +29,7 @@ export function useTaskTypes() {
         user_id: user!.id,
         name: t.name,
         icon: t.icon,
+        system_behavior: t.system_behavior || "study", // Fallback, though interface requires it
         is_custom: false,
         base_xp: 50,
       }));
@@ -44,7 +45,12 @@ export function useTaskTypes() {
     mutationFn: async (input: Partial<UserTaskType>) => {
       const { data, error } = await supabase
         .from("user_task_types")
-        .insert({ ...input, user_id: user!.id, is_custom: true })
+        .insert({
+          ...input,
+          user_id: user!.id,
+          is_custom: true,
+          system_behavior: input.system_behavior || "study"
+        })
         .select()
         .single();
       if (error) throw error;
