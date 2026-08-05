@@ -76,7 +76,7 @@ export function useBadges() {
       queryClient.invalidateQueries({ queryKey: ["badges"] });
       toast.success("Badge created successfully");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(`Failed to create badge: ${error.message}`);
     },
   });
@@ -96,7 +96,7 @@ export function useBadges() {
       queryClient.invalidateQueries({ queryKey: ["badges"] });
       toast.success("Badge updated successfully");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(`Failed to update badge: ${error.message}`);
     },
   });
@@ -110,7 +110,7 @@ export function useBadges() {
       queryClient.invalidateQueries({ queryKey: ["badges"] });
       toast.success("Badge deleted successfully");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(`Failed to delete badge: ${error.message}`);
     },
   });

@@ -9,13 +9,14 @@ import {
 } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 
+interface SessionData {
+  name: string;
+  value: number;
+  color: string;
+}
+
 interface Props {
-  data:
-    | {
-        avgBySession: any[];
-        tasksBySession: Array<{ name: string; value: number; color: string }>;
-      }
-    | undefined;
+  data: { tasksBySession: SessionData[] } | undefined;
   isLoading: boolean;
 }
 

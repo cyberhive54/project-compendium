@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
-import { format, subDays } from "date-fns";
+import { format, subDays, startOfDay, addDays } from "date-fns";
 import { useTimerStore } from "@/stores/timerStore";
 import { useTimerSessions } from "@/hooks/useTimerSessions";
 import { useQueryClient } from "@tanstack/react-query";
@@ -37,8 +37,7 @@ export function useBackgroundJobs() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const timerStore = useTimerStore();
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastDateRef = useRef(format(new Date(), "yyyy-MM-dd"));
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // On login / app open
   useEffect(() => {
@@ -57,20 +56,30 @@ export function useBackgroundJobs() {
       });
     }
 
-    // Midnight detection: check every 30 seconds
-    lastDateRef.current = today;
-    intervalRef.current = setInterval(() => {
-      const now = format(new Date(), "yyyy-MM-dd");
-      if (now !== lastDateRef.current) {
-        lastDateRef.current = now;
-        handleMidnight(user.id, now);
-      }
-    }, 30000);
+    // Schedule midnight handler using setTimeout (no polling)
+    scheduleMidnightHandler(user.id);
 
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, [user]);
+
+  const scheduleMidnightHandler = (userId: string) => {
+    const now = new Date();
+    const tomorrow = startOfDay(addDays(now, 1));
+    const msUntilMidnight = tomorrow.getTime() - now.getTime();
+
+    // Clear any existing timeout
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+    // Schedule the midnight handler
+    timeoutRef.current = setTimeout(() => {
+      const newDate = format(new Date(), "yyyy-MM-dd");
+      handleMidnight(userId, newDate);
+      // Schedule next midnight
+      scheduleMidnightHandler(userId);
+    }, msUntilMidnight);
+  };
 
   const handleMidnight = async (userId: string, newDate: string) => {
     // Transition today's tasks

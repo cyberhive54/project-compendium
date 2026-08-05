@@ -237,10 +237,10 @@ export default function ProjectDetailPage() {
           onOpenChange={setEditProjectOpen}
           onSubmit={(values) => {
             updateProject.mutate(
-              { id: project.project_id, ...values } as any,
+              { id: project.project_id, ...values },
               {
                 onSuccess: () => toast.success("Project updated"),
-                onError: (e: any) => toast.error(e.message),
+                onError: (e: Error) => toast.error(e.message),
               }
             );
           }}
@@ -271,9 +271,9 @@ export default function ProjectDetailPage() {
         open={createGoalOpen}
         onOpenChange={setCreateGoalOpen}
         onSubmit={(values) => {
-          createGoal.mutate(values as Partial<Goal>, {
+          createGoal.mutate(values, {
             onSuccess: () => toast.success("Goal created!"),
-            onError: (e: any) => toast.error(e.message),
+            onError: (e: Error) => toast.error(e.message),
           });
         }}
         presetProjectId={projectId}
@@ -285,10 +285,10 @@ export default function ProjectDetailPage() {
           onOpenChange={() => setEditingGoal(null)}
           onSubmit={(values) => {
             updateGoal.mutate(
-              { id: editingGoal.goal_id, ...values } as any,
+              { id: editingGoal.goal_id, ...values },
               {
                 onSuccess: () => toast.success("Goal updated"),
-                onError: (e: any) => toast.error(e.message),
+                onError: (e: Error) => toast.error(e.message),
               }
             );
           }}
@@ -316,9 +316,9 @@ export default function ProjectDetailPage() {
         onOpenChange={setCreateTaskOpen}
         presetGoalId={taskPresetGoalId}
         onSubmit={(values) => {
-          tasksHook.create.mutate(values as Partial<Task>, {
+          tasksHook.create.mutate(values, {
             onSuccess: () => toast.success("Task created!"),
-            onError: (e: any) => toast.error(e.message),
+            onError: (e: Error) => toast.error(e.message),
           });
         }}
       />

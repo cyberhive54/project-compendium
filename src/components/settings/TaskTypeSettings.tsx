@@ -120,7 +120,7 @@ export function TaskTypeSettings() {
             setIsDialogOpen(false);
             resetForm();
         },
-        onError: (err: any) => {
+        onError: (err: Error) => {
             toast.error(err.message || "Failed to save task type");
         },
     });
@@ -138,7 +138,7 @@ export function TaskTypeSettings() {
             toast.success("Task type deleted");
             setDeleteId(null);
         },
-        onError: (err: any) => {
+        onError: (err: Error) => {
             toast.error(err.message || "Failed to delete task type");
         },
     });
@@ -305,7 +305,7 @@ export function TaskTypeSettings() {
                             <Label htmlFor="behavior">System Behavior</Label>
                             <Select
                                 value={systemBehavior}
-                                onValueChange={(val) => setSystemBehavior(val as any)}
+                                onValueChange={(val) => setSystemBehavior(val)}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select behavior" />

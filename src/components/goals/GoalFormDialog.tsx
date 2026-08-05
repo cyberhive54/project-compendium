@@ -35,11 +35,11 @@ import type { Goal } from "@/types/database";
 const goalSchema = z.object({
   project_id: z.string().default("__none__"),
   name: z.string().trim().min(1, "Name is required").max(100),
-  description: z.string().max(500).optional(),
+  description: z.string().max(500).nullable().optional(),
   goal_type: z.enum(["board", "competitive", "semester", "custom"]),
-  target_date: z.string().optional(),
-  start_date: z.string().optional(),
-  end_date: z.string().optional(),
+  target_date: z.string().nullable().optional(),
+  start_date: z.string().nullable().optional(),
+  end_date: z.string().nullable().optional(),
   color: z.string().default("#10B981"),
   icon: z.string().default("🎯"),
 });

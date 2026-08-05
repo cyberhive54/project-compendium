@@ -21,6 +21,7 @@ export interface TimerSession {
 /**
  * Split a timer session at midnight boundaries.
  * If a session spans midnight, it creates multiple records — one per calendar day.
+ * Paused duration is distributed proportionally across all segments.
  */
 function splitAtMidnight(
   taskId: string,
@@ -41,42 +42,51 @@ function splitAtMidnight(
   pomodoro_cycle: number | null;
   paused_duration_seconds: number;
 }> {
-  const records: Array<{
-    task_id: string;
-    user_id: string;
-    start_time: string;
-    end_time: string;
-    session_type: string;
-    is_pomodoro: boolean;
-    pomodoro_cycle: number | null;
-    paused_duration_seconds: number;
+  const segments: Array<{
+    startMs: number;
+    endMs: number;
+    durationMs: number;
   }> = [];
 
   let currentStart = startMs;
+  let totalDurationMs = 0;
 
+  // First pass: collect all segments and their durations
   while (currentStart < endMs) {
-    // Find next midnight
     const startDate = new Date(currentStart);
     const nextMidnight = new Date(startDate);
     nextMidnight.setDate(nextMidnight.getDate() + 1);
     nextMidnight.setHours(0, 0, 0, 0);
 
     const segmentEnd = Math.min(nextMidnight.getTime(), endMs);
+    const segmentDuration = segmentEnd - currentStart;
 
-    records.push({
+    segments.push({
+      startMs: currentStart,
+      endMs: segmentEnd,
+      durationMs: segmentDuration,
+    });
+
+    totalDurationMs += segmentDuration;
+    currentStart = segmentEnd;
+  }
+
+  // Second pass: create records with proportionally distributed paused time
+  const records = segments.map((segment, index) => {
+    const proportion = totalDurationMs > 0 ? segment.durationMs / totalDurationMs : 0;
+    const allocatedPausedSeconds = Math.round(pausedSeconds * proportion);
+
+    return {
       task_id: taskId,
       user_id: userId,
-      start_time: new Date(currentStart).toISOString(),
-      end_time: new Date(segmentEnd).toISOString(),
+      start_time: new Date(segment.startMs).toISOString(),
+      end_time: new Date(segment.endMs).toISOString(),
       session_type: sessionType,
       is_pomodoro: isPomodoro,
       pomodoro_cycle: cycle,
-      // Only attribute paused time to the first segment
-      paused_duration_seconds: records.length === 0 ? pausedSeconds : 0,
-    });
-
-    currentStart = segmentEnd;
-  }
+      paused_duration_seconds: allocatedPausedSeconds,
+    };
+  });
 
   return records;
 }

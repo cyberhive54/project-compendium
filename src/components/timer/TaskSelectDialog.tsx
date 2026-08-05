@@ -23,7 +23,7 @@ interface TaskSelectDialogProps {
 }
 
 export function TaskSelectDialog({ open, onOpenChange, onSelect }: TaskSelectDialogProps) {
-  const { data: tasks } = useTasks({ archived: false });
+  const { data: tasks } = useTasks({ archived: false, activeOnly: true });
   const [search, setSearch] = useState("");
   const [pomodoroMode, setPomodoroMode] = useState(false);
 
@@ -32,7 +32,7 @@ export function TaskSelectDialog({ open, onOpenChange, onSelect }: TaskSelectDia
 
     return (tasks ?? [])
       .filter(
-        (t) => t.status !== "done" && t.name.toLowerCase().includes(search.toLowerCase())
+        (t) => t.name.toLowerCase().includes(search.toLowerCase())
       )
       .map((task) => {
         const taskDate = task.scheduled_date || "";

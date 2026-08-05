@@ -137,7 +137,7 @@ export default function HolidaysPage() {
         toast.success("Holiday added");
       }
       setFormOpen(false);
-    } catch (err: any) {
+    } catch (err: Error) {
       toast.error(err.message || "Failed to save");
     }
   };

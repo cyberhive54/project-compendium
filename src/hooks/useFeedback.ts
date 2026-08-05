@@ -102,7 +102,7 @@ export function useFeedback() {
             queryClient.invalidateQueries({ queryKey: ["all-feedback"] });
             toast.success("Feedback submitted successfully!");
         },
-        onError: (error: any) => {
+        onError: (error: Error) => {
             toast.error(`Failed to submit feedback: ${error.message}`);
         },
     });
@@ -110,7 +110,7 @@ export function useFeedback() {
     // Update feedback status (admin only)
     const updateFeedbackStatus = useMutation({
         mutationFn: async ({ id, status, admin_notes }: { id: string; status: Feedback["status"]; admin_notes?: string }) => {
-            const updateData: any = { status, updated_at: new Date().toISOString() };
+            const updateData: Partial<Feedback> = { status, updated_at: new Date().toISOString() };
             if (admin_notes !== undefined) {
                 updateData.admin_notes = admin_notes;
             }
@@ -130,7 +130,7 @@ export function useFeedback() {
             queryClient.invalidateQueries({ queryKey: ["user-feedback"] });
             toast.success("Status updated successfully!");
         },
-        onError: (error: any) => {
+        onError: (error: Error) => {
             toast.error(`Failed to update status: ${error.message}`);
         },
     });
@@ -186,7 +186,7 @@ export function useFeedback() {
             queryClient.invalidateQueries({ queryKey: ["user-feedback"] });
             queryClient.invalidateQueries({ queryKey: ["user-votes"] });
         },
-        onError: (error: any) => {
+        onError: (error: Error) => {
             toast.error(`Failed to vote: ${error.message}`);
         },
     });

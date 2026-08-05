@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { useFeedback } from "@/hooks/useFeedback";
+import { useFeedback, type Feedback } from "@/hooks/useFeedback";
 import { GeneralFeedbackForm } from "@/components/feedback/GeneralFeedbackForm";
 import { FeatureRequestForm } from "@/components/feedback/FeatureRequestForm";
 import { BugReportForm } from "@/components/feedback/BugReportForm";
@@ -13,7 +13,7 @@ export default function FeedbackPage() {
     const [activeTab, setActiveTab] = useState("feedback");
     const { submitFeedback, userFeedback, userVotes, voteFeedback } = useFeedback();
 
-    const handleSubmit = (data: any) => {
+    const handleSubmit = (data: Partial<Feedback>) => {
         submitFeedback.mutate(data);
     };
 

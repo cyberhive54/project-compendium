@@ -74,19 +74,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false;
     };
 
-    // Set up auth state listener BEFORE checking session
+    // Set up auth state listener - Supabase guarantees this fires with current session
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      // Check remember-me expiry on auth state change (including initial session)
+      if (currentSession?.user && checkRememberMe()) {
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
 
       if (currentSession?.user) {
-        // Check remember-me expiry on auth state change
-        if (checkRememberMe()) {
-          setLoading(false);
-          return;
-        }
         // Use setTimeout to avoid Supabase client deadlock
         setTimeout(() => fetchProfile(currentSession.user.id), 0);
       } else {
@@ -96,27 +100,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    // Then check for existing session
-    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
-      if (existingSession?.user && checkRememberMe()) {
-        setLoading(false);
-        return;
-      }
-
-      setSession(existingSession);
-      setUser(existingSession?.user ?? null);
-
-      if (existingSession?.user) {
-        fetchProfile(existingSession.user.id);
-      }
-
-      setLoading(false);
-    });
-
     return () => subscription.unsubscribe();
   }, []);
 
   const signUp = async (email: string, password: string, options?: { username?: string }) => {
+    // Check username uniqueness if provided
+    if (options?.username) {
+      const { data: existingProfile } = await supabase
+        .from("user_profiles")
+        .select("username")
+        .eq("username", options.username)
+        .maybeSingle();
+
+      if (existingProfile) {
+        return { error: new Error("Username is already taken") };
+      }
+    }
+
     const { error } = await supabase.auth.signUp({
       email,
       password,

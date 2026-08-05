@@ -232,10 +232,10 @@ export default function GoalDetailPage() {
           onOpenChange={setEditGoalOpen}
           onSubmit={(values) => {
             updateGoal.mutate(
-              { id: goal.goal_id, ...values } as any,
+              { id: goal.goal_id, ...values },
               {
                 onSuccess: () => toast.success("Goal updated"),
-                onError: (e: any) => toast.error(e.message),
+                onError: (e: Error) => toast.error(e.message),
               }
             );
           }}

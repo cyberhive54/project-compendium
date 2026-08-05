@@ -381,7 +381,7 @@ export default function TasksPage() {
               await createTask.mutateAsync(values);
               toast.success("Task created");
               setCreateOpen(false);
-            } catch (err: any) {
+            } catch (err: Error) {
               toast.error(err.message || "Failed to create task");
             }
           }}

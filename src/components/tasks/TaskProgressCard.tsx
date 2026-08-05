@@ -4,11 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Task } from "@/types/database";
-import type { TimerSession } from "@/types/database"; // Assuming TimerSession type exists or similar
+import type { TimerSession } from "@/hooks/useTimerSessions";
 
 interface TaskProgressCardProps {
     task: Task;
-    sessions: any[]; // Using any to avoid strict type issues with join, can refine
+    sessions: TimerSession[];
 }
 
 export function TaskProgressCard({ task, sessions }: TaskProgressCardProps) {
@@ -80,7 +80,7 @@ export function TaskProgressCard({ task, sessions }: TaskProgressCardProps) {
                     ) : (
                         <ScrollArea className="max-h-[200px] pr-4">
                             <div className="space-y-3">
-                                {sessions.map((session: any) => (
+                                {sessions.map((session: TimerSession) => (
                                     <div
                                         key={session.session_id}
                                         className="flex items-center justify-between text-sm border-b last:border-0 pb-2 last:pb-0"

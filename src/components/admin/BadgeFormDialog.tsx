@@ -41,15 +41,25 @@ const badgeSchema = z.object({
     tier: z.enum(["bronze", "silver", "gold", "platinum"]),
     xp_reward: z.coerce.number().min(0),
     is_default: z.boolean().default(false),
-    // Condition is JSON string
-    unlock_condition_json: z.string().min(2, "Invalid JSON"),
+    // Condition is JSON string - validate it parses correctly
+    unlock_condition_json: z.string().min(2, "Invalid JSON").refine(
+        (val) => {
+            try {
+                JSON.parse(val);
+                return true;
+            } catch {
+                return false;
+            }
+        },
+        { message: "Invalid JSON format" }
+    ),
 });
 
 interface BadgeFormDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     initialData?: BadgeDefinition;
-    onSubmit: (data: any) => void;
+    onSubmit: (data: Omit<BadgeDefinition, 'badge_id' | 'created_at' | 'levels'> & { levels?: BadgeLevel[] }) => void;
 }
 
 export function BadgeFormDialog({
@@ -81,8 +91,8 @@ export function BadgeFormDialog({
                     name: initialData.name,
                     description: initialData.description,
                     icon: initialData.icon,
-                    category: initialData.category as any,
-                    tier: initialData.tier as any,
+                    category: initialData.category,
+                    tier: initialData.tier,
                     xp_reward: initialData.xp_reward,
                     is_default: initialData.is_default ?? false,
                     unlock_condition_json: JSON.stringify(initialData.unlock_condition, null, 2),

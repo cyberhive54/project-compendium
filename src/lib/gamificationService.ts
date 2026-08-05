@@ -6,6 +6,7 @@ import {
 } from "./xpCalculator";
 import { useGamificationStore } from "@/stores/gamificationStore";
 import { EXAM_TASK_TYPES } from "@/types/database";
+import { BadgeLevel } from "@/hooks/useBadges";
 
 // ─── Award XP for completing a task ─────────────────────────────
 
@@ -135,7 +136,7 @@ async function checkBadges(userId: string, currentTotalXP: number) {
   const earnedIds = new Set(earnedBadges?.map((b) => b.badge_id) ?? []);
   // Helper to get earned level safely
   const getEarnedLevel = (badgeId: string) => {
-    const found = (earnedBadges as any[])?.find((b) => b.badge_id === badgeId);
+    const found = earnedBadges?.find((b) => b.badge_id === badgeId);
     return found?.badge_level ?? 1;
   };
 
@@ -232,7 +233,7 @@ async function checkBadges(userId: string, currentTotalXP: number) {
     if (isMultiLevel) {
       // Find highest qualified level
       // Assumes levels are sorted or we sort them
-      const sortedLevels = [...badge.levels].sort((a: any, b: any) => a.level - b.level);
+      const sortedLevels = [...badge.levels].sort((a: BadgeLevel, b: BadgeLevel) => a.level - b.level);
 
       for (const level of sortedLevels) {
         if (metricValue >= level.threshold) {
@@ -243,12 +244,12 @@ async function checkBadges(userId: string, currentTotalXP: number) {
       if (qualifiedLevel > currentLevel) {
         // Calculate XP difference
         const previouslyAwarded = sortedLevels
-          .filter((l: any) => l.level <= currentLevel)
-          .reduce((sum: number, l: any) => sum + (l.xp_reward || 0), 0);
+          .filter((l: BadgeLevel) => l.level <= currentLevel)
+          .reduce((sum: number, l: BadgeLevel) => sum + (l.xp_reward || 0), 0);
 
         const totalAwarded = sortedLevels
-          .filter((l: any) => l.level <= qualifiedLevel)
-          .reduce((sum: number, l: any) => sum + (l.xp_reward || 0), 0);
+          .filter((l: BadgeLevel) => l.level <= qualifiedLevel)
+          .reduce((sum: number, l: BadgeLevel) => sum + (l.xp_reward || 0), 0);
 
         xpToAward = totalAwarded - previouslyAwarded;
       }

@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { Project, Goal, Stream, Subject, Chapter, Topic, Task } from "@/types/database";
 
 // Reusable Combobox Component for Filters
 interface FilterComboboxProps {
@@ -103,7 +104,7 @@ export default function HierarchyPage() {
     const [editingItem, setEditingItem] = useState<{
         type: HierarchyLevel;
         id: string;
-        data: any;
+        data: Stream | Subject | Chapter | Topic;
     } | null>(null);
 
     // Filter State
@@ -233,10 +234,10 @@ export default function HierarchyPage() {
     const getTaskCount = (topicId: string) => tasks.filter(t => t.topic_id === topicId).length;
 
     // --- Handlers ---
-    const handleDelete = async (type: string, id: string, deleteFn: any) => {
+    const handleDelete = async (type: string, id: string, deleteFn: (id: string) => Promise<unknown>) => {
         if (confirm(`Are you sure you want to delete this ${type}?`)) {
             try {
-                await deleteFn.mutateAsync(id);
+                await deleteFn(id);
                 toast.success(`${type} deleted`);
             } catch (error) {
                 toast.error(`Failed to delete ${type}`);
@@ -244,19 +245,19 @@ export default function HierarchyPage() {
         }
     };
 
-    const handleEdit = (type: HierarchyLevel, id: string, data: any) => {
+    const handleEdit = (type: HierarchyLevel, id: string, data: Stream | Subject | Chapter | Topic) => {
         setEditingItem({ type, id, data });
     };
 
-    const handleUpdate = async (values: any) => {
+    const handleUpdate = async (values: Partial<Stream | Subject | Chapter | Topic>) => {
         if (!editingItem) return;
         const { type, id } = editingItem;
 
         try {
-            if (type === "stream") await updateStream.mutateAsync({ id, ...values });
-            else if (type === "subject") await updateSubject.mutateAsync({ id, ...values });
-            else if (type === "chapter") await updateChapter.mutateAsync({ id, ...values });
-            else if (type === "topic") await updateTopic.mutateAsync({ id, ...values });
+            if (type === "stream") await updateStream.mutateAsync({ id, ...values } as Partial<Stream>);
+            else if (type === "subject") await updateSubject.mutateAsync({ id, ...values } as Partial<Subject>);
+            else if (type === "chapter") await updateChapter.mutateAsync({ id, ...values } as Partial<Chapter>);
+            else if (type === "topic") await updateTopic.mutateAsync({ id, ...values } as Partial<Topic>);
 
             toast.success(`${type} updated`);
             setEditingItem(null);
@@ -265,10 +266,10 @@ export default function HierarchyPage() {
         }
     };
 
-    const handleArchive = async (type: string, id: string, archiveFn: any) => {
+    const handleArchive = async (type: string, id: string, archiveFn: (id: string) => Promise<unknown>) => {
         if (confirm(`Are you sure you want to archive this ${type}?`)) {
             try {
-                await archiveFn.mutateAsync(id);
+                await archiveFn(id);
                 toast.success(`${type} archived`);
             } catch (error) {
                 toast.error(`Failed to archive ${type}`);

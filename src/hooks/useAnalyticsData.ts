@@ -179,9 +179,18 @@ export function useSubjectPerformance(period: TimePeriod, filters?: AnalyticsFil
       const { data } = await q;
       const bySubject: Record<string, { name: string; color: string; minutes: number }> = {};
 
-      for (const s of data ?? []) {
-        const task = (s as any).tasks;
-        const subject = task?.subjects;
+      interface TimerSessionWithTask {
+        duration_seconds: number | null;
+        task_id: string;
+        tasks: {
+          subject_id: string | null;
+          goal_id: string;
+          subjects: { name: string; color: string | null } | null;
+        } | null;
+      }
+
+      for (const s of (data ?? []) as TimerSessionWithTask[]) {
+        const subject = s.tasks?.subjects;
         if (!subject) continue;
         const key = subject.name;
         if (!bySubject[key]) {
@@ -1032,6 +1041,12 @@ export function useLevelProgress() {
       const xpNeeded = xpForNextLevel - xpForCurrentLevel;
 
       // Recent badges
+      interface RecentBadge {
+        badge_id: string;
+        unlocked_at: string;
+        badges: { name: string; icon: string; tier: string } | null;
+      }
+
       const { data: recentBadges } = await supabase
         .from("user_badges")
         .select("badge_id, unlocked_at, badges(name, icon, tier)")
@@ -1045,7 +1060,7 @@ export function useLevelProgress() {
         xpInLevel,
         xpNeeded,
         progressPercent: xpNeeded > 0 ? Math.round((xpInLevel / xpNeeded) * 100) : 100,
-        recentBadges: (recentBadges ?? []).map((b: any) => ({
+        recentBadges: (recentBadges ?? []).map((b: RecentBadge) => ({
           id: b.badge_id,
           name: b.badges?.name ?? b.badge_id,
           icon: b.badges?.icon ?? "🏅",

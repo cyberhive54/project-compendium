@@ -147,20 +147,20 @@ export default function ProjectsPage() {
   };
 
   // Handlers
-  const handleCreateProject = (values: Record<string, any>) => {
-    createProject.mutate(values as Partial<Project>, {
+  const handleCreateProject = (values: Partial<Project>) => {
+    createProject.mutate(values, {
       onSuccess: () => toast.success("Project created!"),
-      onError: (e: any) => toast.error(e.message),
+      onError: (e: Error) => toast.error(e.message),
     });
   };
 
-  const handleEditProject = (values: Record<string, any>) => {
+  const handleEditProject = (values: Partial<Project>) => {
     if (!editingProject) return;
     updateProject.mutate(
-      { id: editingProject.project_id, ...values } as any,
+      { id: editingProject.project_id, ...values },
       {
         onSuccess: () => toast.success("Project updated"),
-        onError: (e: any) => toast.error(e.message),
+        onError: (e: Error) => toast.error(e.message),
       }
     );
   };
@@ -180,20 +180,20 @@ export default function ProjectsPage() {
 
   const [addGoalDialogOpen, setAddGoalDialogOpen] = useState(false);
 
-  const handleCreateGoal = (values: Record<string, any>) => {
-    createGoal.mutate(values as Partial<Goal>, {
+  const handleCreateGoal = (values: Partial<Goal>) => {
+    createGoal.mutate(values, {
       onSuccess: () => toast.success("Goal created!"),
-      onError: (e: any) => toast.error(e.message),
+      onError: (e: Error) => toast.error(e.message),
     });
   };
 
-  const handleEditGoal = (values: Record<string, any>) => {
+  const handleEditGoal = (values: Partial<Goal>) => {
     if (!editingGoal) return;
     updateGoal.mutate(
-      { id: editingGoal.goal_id, ...values } as any,
+      { id: editingGoal.goal_id, ...values },
       {
         onSuccess: () => toast.success("Goal updated"),
-        onError: (e: any) => toast.error(e.message),
+        onError: (e: Error) => toast.error(e.message),
       }
     );
   };
@@ -397,7 +397,7 @@ export default function ProjectsPage() {
           if (deleteTarget) {
             removeProject.mutate(deleteTarget.id, {
               onSuccess: () => toast.success("Project permanently deleted"),
-              onError: (e: any) => toast.error(e.message),
+              onError: (e: Error) => toast.error(e.message),
             });
             setDeleteTarget(null);
           }
@@ -453,9 +453,9 @@ export default function ProjectsPage() {
         onOpenChange={setCreateTaskOpen}
         presetGoalId={taskPresetGoalId}
         onSubmit={(values) => {
-          tasksHook.create.mutate(values as Partial<Task>, {
+          tasksHook.create.mutate(values, {
             onSuccess: () => toast.success("Task created!"),
-            onError: (e: any) => toast.error(e.message),
+            onError: (e: Error) => toast.error(e.message),
           });
         }}
       />

@@ -35,7 +35,7 @@ const PROJECT_COLORS = [
 
 const projectSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(100),
-  description: z.string().max(500).optional(),
+  description: z.string().max(500).nullable().optional(),
   color: z.string().default("#3B82F6"),
   icon: z.string().default("📚"),
 });

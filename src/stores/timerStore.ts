@@ -186,6 +186,8 @@ export const useTimerStore = create<TimerState>()(
       advancePomodoroPhase: () => {
         const state = get();
         const config = state.pomodoroConfig;
+        // Preserve accumulated pause time when transitioning phases
+        const accumulatedPausedMs = state.totalPausedMs + (state.pausedAt ? Date.now() - state.pausedAt : 0);
         if (state.mode === "focus") {
           // Move to break
           const isLongBreak = state.currentCycle >= config.cyclesBeforeLongBreak;
@@ -194,7 +196,7 @@ export const useTimerStore = create<TimerState>()(
             mode: "break",
             startTime: Date.now(),
             pausedAt: null,
-            totalPausedMs: 0,
+            totalPausedMs: accumulatedPausedMs,
             pomodoroTargetSeconds: breakDuration * 60,
             status: config.autoStartBreak ? "running" : "paused",
           });
@@ -207,7 +209,7 @@ export const useTimerStore = create<TimerState>()(
             currentCycle: nextCycle,
             startTime: Date.now(),
             pausedAt: null,
-            totalPausedMs: 0,
+            totalPausedMs: accumulatedPausedMs,
             pomodoroTargetSeconds: config.focusDuration * 60,
             status: config.autoStartFocus ? "running" : "paused",
           });

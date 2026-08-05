@@ -18,8 +18,8 @@ const ChapterSchema = z.object({
 const SubjectSchema = z.object({
     name: z.string().min(1, "Subject name is required"),
     weightage: z.number().min(0).max(100).optional().default(0),
-    icon: z.string().optional(),
-    color: z.string().optional(),
+    icon: z.string().nullable().optional(),
+    color: z.string().nullable().optional(),
     chapters: z.array(ChapterSchema).optional().default([]),
 });
 
@@ -32,10 +32,10 @@ const StreamSchema = z.object({
 // Goal can contain Streams OR directly Subjects (if no streams used)
 const GoalSchema = z.object({
     name: z.string().min(1, "Goal name is required"),
-    description: z.string().optional(),
-    start_date: z.string().optional(), // ISO Date string
-    end_date: z.string().optional(),   // ISO Date string
-    target_date: z.string().optional(),
+    description: z.string().nullable().optional(),
+    start_date: z.string().nullable().optional(), // ISO Date string
+    end_date: z.string().nullable().optional(),   // ISO Date string
+    target_date: z.string().nullable().optional(),
     streams: z.array(StreamSchema).optional().default([]),
     subjects: z.array(SubjectSchema).optional().default([]), // For direct subjects
 });
@@ -59,7 +59,7 @@ export interface ValidationResult {
 }
 
 // Helper to recursively unwrap array goal
-function unwrapGoal(data: any): any {
+function unwrapGoal(data: unknown): unknown {
     if (Array.isArray(data)) {
         if (data.length === 0) return {};
         return unwrapGoal(data[0]);
@@ -69,7 +69,7 @@ function unwrapGoal(data: any): any {
 
 // --- Validation Logic ---
 
-export function validateSyllabus(jsonData: any): ValidationResult {
+export function validateSyllabus(jsonData: unknown): ValidationResult {
     const errors: ValidationError[] = [];
 
     // Recursively unwrap if wrapped in [ ... ]

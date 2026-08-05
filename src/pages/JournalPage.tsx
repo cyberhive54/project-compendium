@@ -62,7 +62,7 @@ export default function JournalPage() {
     try {
       await upsert.mutateAsync({ date: selectedDate, content: content.trim() });
       toast.success("Journal saved");
-    } catch (err: any) {
+    } catch (err: Error) {
       toast.error(err.message || "Failed to save");
     }
   };

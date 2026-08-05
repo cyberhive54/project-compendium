@@ -33,26 +33,26 @@ const schemas: Record<HierarchyLevel, z.ZodObject<any>> = {
   stream: z.object({
     name: z.string().trim().min(1, "Name is required").max(100),
     weightage: z.coerce.number().min(0).max(100).default(0),
-    color: z.string().optional(),
+    color: z.string().nullable().optional(),
   }),
   subject: z.object({
     name: z.string().trim().min(1, "Name is required").max(100),
     weightage: z.coerce.number().min(0).max(100).default(0),
-    color: z.string().optional(),
-    icon: z.string().default("📖"),
+    color: z.string().nullable().optional(),
+    icon: z.string().nullable().default("📖"),
   }),
   chapter: z.object({
     name: z.string().trim().min(1, "Name is required").max(200),
-    chapter_number: z.coerce.number().int().positive().optional(),
+    chapter_number: z.coerce.number().int().positive().nullable().optional(),
     weightage: z.coerce.number().min(0).max(100).default(0),
-    description: z.string().max(500).optional(),
-    estimated_hours: z.coerce.number().min(0).optional(),
+    description: z.string().max(500).nullable().optional(),
+    estimated_hours: z.coerce.number().min(0).nullable().optional(),
   }),
   topic: z.object({
     name: z.string().trim().min(1, "Name is required").max(200),
     weightage: z.coerce.number().min(0).max(100).default(0),
     difficulty: z.enum(["easy", "medium", "hard"]).default("medium"),
-    notes: z.string().max(1000).optional(),
+    notes: z.string().max(1000).nullable().optional(),
   }),
 };
 

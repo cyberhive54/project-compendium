@@ -50,17 +50,17 @@ const DEFAULT_TASK_TYPES = [
 
 const templateSchema = z.object({
     name: z.string().min(1, "Name is required"),
-    goal_id: z.string().optional(),
-    subject_id: z.string().optional(),
-    chapter_id: z.string().optional(),
-    topic_id: z.string().optional(),
+    goal_id: z.string().nullable().optional(),
+    subject_id: z.string().nullable().optional(),
+    chapter_id: z.string().nullable().optional(),
+    topic_id: z.string().nullable().optional(),
     task_type: z.string().min(1, "Task type is required"),
     priority_number: z.coerce.number().min(0).max(9999),
-    estimated_duration: z.coerce.number().min(0).optional(),
-    scheduled_time_slot: z.string().optional(),
-    preferred_session_id: z.string().optional(),
-    schedule_start: z.string().optional(),
-    schedule_end: z.string().optional(),
+    estimated_duration: z.coerce.number().min(0).nullable().optional(),
+    scheduled_time_slot: z.string().nullable().optional(),
+    preferred_session_id: z.string().nullable().optional(),
+    schedule_start: z.string().nullable().optional(),
+    schedule_end: z.string().nullable().optional(),
     recurrence: z.enum(["daily", "weekly", "monthly", "none"]).default("none"),
     is_active: z.boolean().default(true),
 });
@@ -69,7 +69,7 @@ interface TaskTemplateDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     initialData?: TaskTemplate;
-    onSubmit: (data: any) => void;
+    onSubmit: (data: z.infer<typeof templateSchema>) => void;
 }
 
 export function TaskTemplateDialog({
@@ -137,7 +137,7 @@ export function TaskTemplateDialog({
                     preferred_session_id: initialData.preferred_session_id || "",
                     schedule_start: initialData.schedule_start || "",
                     schedule_end: "",
-                    recurrence: (initialData.recurrence as any) || "none",
+                    recurrence: initialData.recurrence || "none",
                     is_active: initialData.is_active,
                 });
             } else {

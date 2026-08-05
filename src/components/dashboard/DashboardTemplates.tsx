@@ -60,17 +60,17 @@ export function DashboardTemplates() {
                 subject_id: selectedTemplate.subject_id,
                 chapter_id: selectedTemplate.chapter_id,
                 topic_id: selectedTemplate.topic_id,
-                task_type: selectedTemplate.task_type as any,
+                task_type: selectedTemplate.task_type,
                 priority_number: selectedTemplate.priority_number,
                 estimated_duration: selectedTemplate.estimated_duration,
                 scheduled_date: today,
                 scheduled_time_slot: selectedTemplate.scheduled_time_slot,
                 preferred_session_id: selectedTemplate.preferred_session_id,
-                status: "scheduled" as any,
+                status: "scheduled",
             });
             toast.success(`Task "${name}" created for today`);
             setSelectedTemplate(null);
-        } catch (err: any) {
+        } catch (err: Error) {
             toast.error(err.message || "Failed to create task");
         }
     };

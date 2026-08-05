@@ -62,20 +62,20 @@ export default function GoalsPage() {
     return map;
   }, [projects]);
 
-  const handleCreateGoal = (values: Record<string, any>) => {
-    create.mutate(values as Partial<Goal>, {
+  const handleCreateGoal = (values: Partial<Goal>) => {
+    create.mutate(values, {
       onSuccess: () => toast.success("Goal created!"),
-      onError: (e: any) => toast.error(e.message),
+      onError: (e: Error) => toast.error(e.message),
     });
   };
 
-  const handleEditGoal = (values: Record<string, any>) => {
+  const handleEditGoal = (values: Partial<Goal>) => {
     if (!editingGoal) return;
     update.mutate(
-      { id: editingGoal.goal_id, ...values } as any,
+      { id: editingGoal.goal_id, ...values },
       {
         onSuccess: () => toast.success("Goal updated"),
-        onError: (e: any) => toast.error(e.message),
+        onError: (e: Error) => toast.error(e.message),
       }
     );
   };
@@ -267,7 +267,7 @@ export default function GoalsPage() {
           if (deleteTarget) {
             removeGoal.mutate(deleteTarget.id, {
               onSuccess: () => toast.success("Goal permanently deleted"),
-              onError: (e: any) => toast.error(e.message),
+              onError: (e: Error) => toast.error(e.message),
             });
             setDeleteTarget(null);
           }
@@ -279,9 +279,9 @@ export default function GoalsPage() {
         onOpenChange={setCreateTaskOpen}
         presetGoalId={taskPresetGoalId}
         onSubmit={(values) => {
-          tasksHook.create.mutate(values as Partial<Task>, {
+          tasksHook.create.mutate(values, {
             onSuccess: () => toast.success("Task created!"),
-            onError: (e: any) => toast.error(e.message),
+            onError: (e: Error) => toast.error(e.message),
           });
         }}
       />
@@ -295,10 +295,10 @@ export default function GoalsPage() {
             defaultValues={editingTask}
             onSubmit={(values) => {
               tasksHook.update.mutate(
-                { id: editingTask.task_id, ...values } as any,
+                { id: editingTask.task_id, ...values },
                 {
                   onSuccess: () => toast.success("Task updated"),
-                  onError: (e: any) => toast.error(e.message),
+                  onError: (e: Error) => toast.error(e.message),
                 }
               );
               setEditingTask(null);

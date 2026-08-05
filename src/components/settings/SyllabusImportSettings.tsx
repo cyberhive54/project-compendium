@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Upload, AlertCircle, CheckCircle2, FileJson, X, ClipboardPaste } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
-import { validateSyllabus, type ImportGoal, type ValidationError } from "@/lib/syllabusValidation";
+import { validateSyllabus, type ImportGoal, type ImportSubject, type ImportChapter, type ValidationError } from "@/lib/syllabusValidation";
 import { DatePicker } from "@/components/ui/date-picker";
 import { format, parseISO } from "date-fns";
 
@@ -106,7 +106,7 @@ export function SyllabusImportSettings() {
 
         // --- Helper Functions ---
         // Helper to create subject hierarchy
-        const createSubjectHierarchy = async (parentGoalId: string, subjectData: any, streamId: string | null = null) => {
+        const createSubjectHierarchy = async (parentGoalId: string, subjectData: ImportSubject, streamId: string | null = null) => {
             const { data: subject, error } = await supabase
                 .from("subjects")
                 .insert({
@@ -142,11 +142,11 @@ export function SyllabusImportSettings() {
 
                     // Create Topics
                     if (chapterData.topics && Array.isArray(chapterData.topics)) {
-                        const topicsToInsert = chapterData.topics.map((t: any) => ({
+                        const topicsToInsert = chapterData.topics.map((t: ImportChapter) => ({
                             chapter_id: chapter.chapter_id,
                             name: t.name,
-                            difficulty: t.difficulty || "medium",
                             weightage: t.weightage || 0,
+                            difficulty: t.difficulty || "medium",
                             completed: false
                         }));
 
@@ -161,7 +161,7 @@ export function SyllabusImportSettings() {
         };
 
         // Helper for streams
-        const createStreamHierarchy = async (parentGoalId: string, streamData: any) => {
+        const createStreamHierarchy = async (parentGoalId: string, streamData: ImportStream) => {
             const { data: stream, error } = await supabase
                 .from("streams")
                 .insert({
@@ -234,7 +234,7 @@ export function SyllabusImportSettings() {
             setJsonInput("");
             setParsedData(null);
             setValidationErrors([]);
-        } catch (error: any) {
+        } catch (error: Error) {
             console.error("Import error:", error);
             toast.error(error.message || "Failed to import syllabus");
         } finally {

@@ -58,7 +58,7 @@ export function useTaskTemplates() {
             queryClient.invalidateQueries({ queryKey: ["task-templates"] });
             toast.success("Template created");
         },
-        onError: (e: any) => toast.error(`Failed to create template: ${e.message}`),
+        onError: (e: Error) => toast.error(`Failed to create template: ${e.message}`),
     });
 
     const update = useMutation({
@@ -76,7 +76,7 @@ export function useTaskTemplates() {
             queryClient.invalidateQueries({ queryKey: ["task-templates"] });
             toast.success("Template updated");
         },
-        onError: (e: any) => toast.error(`Failed to update template: ${e.message}`),
+        onError: (e: Error) => toast.error(`Failed to update template: ${e.message}`),
     });
 
     const remove = useMutation({
@@ -91,7 +91,7 @@ export function useTaskTemplates() {
             queryClient.invalidateQueries({ queryKey: ["task-templates"] });
             toast.success("Template deleted");
         },
-        onError: (e: any) => toast.error(`Failed to delete template: ${e.message}`),
+        onError: (e: Error) => toast.error(`Failed to delete template: ${e.message}`),
     });
 
     return {

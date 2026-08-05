@@ -74,7 +74,8 @@ export function useDashboardStats() {
       } as DashboardStats;
     },
     enabled: !!user,
-    refetchInterval: 60000, // refresh every minute
+    staleTime: 5 * 60 * 1000, // 5 minutes - data is fresh for 5 min
+    refetchInterval: 60000, // refresh every minute after stale
   });
 
   return statsQuery;

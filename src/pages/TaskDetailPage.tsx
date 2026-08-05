@@ -299,7 +299,7 @@ export default function TaskDetailPage() {
                           await update.mutateAsync({
                             id: task.task_id,
                             status: 'pending' as Task['status'],
-                            completed_at: null as any,
+                            completed_at: null,
                           });
                           setTask((t) => t ? { ...t, status: 'pending' as Task['status'], completed_at: null } : t);
                           toast.success('Task marked as incomplete');

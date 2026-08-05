@@ -36,6 +36,7 @@ export function useCalendarTasks(startDate: string, endDate: string, filters?: {
       }
 
       if (filters?.projectId && filters.projectId !== "all") {
+        // Filter by project_id through the goals relationship (join)
         q = q.eq("goals.project_id", filters.projectId);
       }
 

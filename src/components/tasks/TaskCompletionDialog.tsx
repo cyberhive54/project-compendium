@@ -101,9 +101,14 @@ export function TaskCompletionDialog({
     const [totalQuestions, setTotalQuestions] = useState<number | "">("");
     const [attemptedQuestions, setAttemptedQuestions] = useState<number | "">("");
     const [correctAnswers, setCorrectAnswers] = useState<number | "">("");
+    const [wrongAnswers, setWrongAnswers] = useState<number | "">("");
+    const [skippedQuestions, setSkippedQuestions] = useState<number | "">("");
     const [marksPerQuestion, setMarksPerQuestion] = useState<number>(1);
     const [negativeMarking, setNegativeMarking] = useState<number>(0);
     const [timeTaken, setTimeTaken] = useState<number | "">("");
+    const [marksObtainedState, setMarksObtainedState] = useState<number | "">("");
+    const [totalMarksState, setTotalMarksState] = useState<number | "">("");
+    const [accuracyPercentage, setAccuracyPercentage] = useState<number | "">("");
 
     // Other Type State
     const [difficulty, setDifficulty] = useState("medium");
@@ -130,7 +135,12 @@ export function TaskCompletionDialog({
             // Reset other fields
             setAttemptedQuestions("");
             setCorrectAnswers("");
+            setWrongAnswers("");
+            setSkippedQuestions("");
             setTimeTaken("");
+            setMarksObtainedState("");
+            setTotalMarksState("");
+            setAccuracyPercentage("");
             setDifficulty("medium");
             setGrade("");
             setSubmissionStatus("submitted");
@@ -190,6 +200,11 @@ export function TaskCompletionDialog({
             const attempted = Number(attemptedQuestions);
             const correct = Number(correctAnswers);
             const taken = Number(timeTaken);
+            const wrong = Number(wrongAnswers) || 0;
+            const skipped = Number(skippedQuestions) || 0;
+            const marksObtained = Number(marksObtainedState) || 0;
+            const totalMarks = Number(totalMarksState) || 0;
+            const accuracy = Number(accuracyPercentage) || 0;
 
             if (!totalQuestions || total <= 0) {
                 newErrors.totalQuestions = "Total questions must be greater than 0";
@@ -206,6 +221,45 @@ export function TaskCompletionDialog({
                 isValid = false;
             }
 
+            // Validate wrong_answers and skipped_questions
+            if (wrong < 0) {
+                newErrors.wrongAnswers = "Wrong answers must be >= 0";
+                isValid = false;
+            }
+            if (skipped < 0) {
+                newErrors.skippedQuestions = "Skipped questions must be >= 0";
+                isValid = false;
+            }
+            if (correct + wrong + skipped !== total) {
+                newErrors.questionSum = `Correct + Wrong + Skipped (${correct + wrong + skipped}) must equal Total Questions (${total})`;
+                isValid = false;
+            }
+
+            // Validate marks
+            if (marksObtained < 0) {
+                newErrors.marksObtained = "Marks obtained must be >= 0";
+                isValid = false;
+            }
+            if (totalMarks < 0) {
+                newErrors.totalMarks = "Total marks must be >= 0";
+                isValid = false;
+            }
+            if (marksObtained > totalMarks) {
+                newErrors.marksObtained = `Marks obtained (${marksObtained}) cannot exceed total marks (${totalMarks})`;
+                isValid = false;
+            }
+
+            // Validate accuracy_percentage matches calculated
+            const calculatedAccuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
+            if (accuracy < 0 || accuracy > 100) {
+                newErrors.accuracyPercentage = "Accuracy must be between 0 and 100";
+                isValid = false;
+            }
+            if (attempted > 0 && accuracy !== calculatedAccuracy) {
+                newErrors.accuracyPercentage = `Accuracy (${accuracy}%) does not match calculated (${calculatedAccuracy}%)`;
+                isValid = false;
+            }
+
             if (timeTaken === "" || taken < 0) {
                 newErrors.timeTaken = "Time taken is required and must be positive";
                 isValid = false;
@@ -213,7 +267,7 @@ export function TaskCompletionDialog({
 
             // Exam Time <= Total Duration Validation
             const totalDuration = showManualTime ? manualDuration : (task.actual_duration || 0); // specific fallback if session exists
-            // Since we don't have exact session sum here easily without summing 'sessions', 
+            // Since we don't have exact session sum here easily without summing 'sessions',
             // and the user requirement specifically mentioned "duration after the start time , hsould always be greater to the exam time".
 
             if (showManualTime && taken > manualDuration) {
@@ -250,14 +304,14 @@ export function TaskCompletionDialog({
             data.total_questions = Number(totalQuestions);
             data.attempted_questions = Number(attemptedQuestions);
             data.correct_answers = Number(correctAnswers);
-            data.wrong_answers = calculations.wrong;
-            data.skipped_questions = calculations.skipped;
+            data.wrong_answers = Number(wrongAnswers) || 0;
+            data.skipped_questions = Number(skippedQuestions) || 0;
             data.marks_per_question = marksPerQuestion;
             data.negative_marking = negativeMarking;
-            data.time_taken_minutes = Number(timeTaken) || manualDuration;
-            data.marks_obtained = calculations.marksObtained;
-            data.total_marks = calculations.totalMarks;
-            data.accuracy_percentage = calculations.accuracy;
+            data.time_taken_minutes = Number(timeTaken);
+            data.marks_obtained = Number(marksObtainedState) || 0;
+            data.total_marks = Number(totalMarksState) || 0;
+            data.accuracy_percentage = Number(accuracyPercentage) || 0;
         }
 
         // 3. Other Types
@@ -452,6 +506,74 @@ export function TaskCompletionDialog({
                                                 value={negativeMarking}
                                                 onChange={(e) => setNegativeMarking(Number(e.target.value))}
                                             />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4 pt-2">
+                                        <div className="space-y-2">
+                                            <Label className={errors.wrongAnswers ? "text-destructive" : ""}>Wrong Answers</Label>
+                                            <Input
+                                                type="number"
+                                                min="0"
+                                                value={wrongAnswers}
+                                                onChange={(e) => setWrongAnswers(e.target.value === "" ? "" : Number(e.target.value))}
+                                                className={errors.wrongAnswers ? "border-destructive" : ""}
+                                            />
+                                            {errors.wrongAnswers && <p className="text-xs text-destructive">{errors.wrongAnswers}</p>}
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className={errors.skippedQuestions ? "text-destructive" : ""}>Skipped Questions</Label>
+                                            <Input
+                                                type="number"
+                                                min="0"
+                                                value={skippedQuestions}
+                                                onChange={(e) => setSkippedQuestions(e.target.value === "" ? "" : Number(e.target.value))}
+                                                className={errors.skippedQuestions ? "border-destructive" : ""}
+                                            />
+                                            {errors.skippedQuestions && <p className="text-xs text-destructive">{errors.skippedQuestions}</p>}
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4 pt-2">
+                                        <div className="space-y-2">
+                                            <Label className={errors.marksObtained ? "text-destructive" : ""}>Marks Obtained</Label>
+                                            <Input
+                                                type="number"
+                                                step="0.25"
+                                                min="0"
+                                                value={marksObtainedState}
+                                                onChange={(e) => setMarksObtainedState(e.target.value === "" ? "" : Number(e.target.value))}
+                                                className={errors.marksObtained ? "border-destructive" : ""}
+                                            />
+                                            {errors.marksObtained && <p className="text-xs text-destructive">{errors.marksObtained}</p>}
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className={errors.totalMarks ? "text-destructive" : ""}>Total Marks</Label>
+                                            <Input
+                                                type="number"
+                                                step="0.25"
+                                                min="0"
+                                                value={totalMarksState}
+                                                onChange={(e) => setTotalMarksState(e.target.value === "" ? "" : Number(e.target.value))}
+                                                className={errors.totalMarks ? "border-destructive" : ""}
+                                            />
+                                            {errors.totalMarks && <p className="text-xs text-destructive">{errors.totalMarks}</p>}
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4 pt-2">
+                                        <div className="space-y-2">
+                                            <Label className={errors.accuracyPercentage ? "text-destructive" : ""}>Accuracy %</Label>
+                                            <Input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                step="0.01"
+                                                value={accuracyPercentage}
+                                                onChange={(e) => setAccuracyPercentage(e.target.value === "" ? "" : Number(e.target.value))}
+                                                className={errors.accuracyPercentage ? "border-destructive" : ""}
+                                            />
+                                            {errors.accuracyPercentage && <p className="text-xs text-destructive">{errors.accuracyPercentage}</p>}
                                         </div>
                                     </div>
 

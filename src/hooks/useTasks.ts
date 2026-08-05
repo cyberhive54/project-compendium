@@ -13,6 +13,7 @@ interface TaskFilters {
   taskType?: string;
   scheduledDate?: string;
   archived?: boolean;
+  activeOnly?: boolean;
 }
 
 export function useTasks(filters?: TaskFilters) {
@@ -37,6 +38,7 @@ export function useTasks(filters?: TaskFilters) {
       if (filters?.status) q = q.eq("status", filters.status);
       if (filters?.taskType) q = q.eq("task_type", filters.taskType);
       if (filters?.scheduledDate) q = q.eq("scheduled_date", filters.scheduledDate);
+      if (filters?.activeOnly) q = q.neq("status", "done");
 
       const { data, error } = await q;
       if (error) throw error;
@@ -83,13 +85,6 @@ export function useTasks(filters?: TaskFilters) {
 
   const markDone = useMutation({
     mutationFn: async ({ taskId, ...completionData }: { taskId: string } & Partial<Task>) => {
-      // Get task data before marking done (for XP calculation)
-      const { data: taskData } = await supabase
-        .from("tasks")
-        .select("task_type, actual_duration, accuracy_percentage")
-        .eq("task_id", taskId)
-        .single();
-
       // Prepare update object with completion status and timestamp
       // NOTE: We must exclude generated columns (skipped_questions, total_marks) from the update
       const {
@@ -98,7 +93,7 @@ export function useTasks(filters?: TaskFilters) {
         ...safeCompletionData
       } = completionData;
 
-      const updatePayload: any = {
+      const updatePayload: Partial<Task> = {
         status: "done",
         completed_at: new Date().toISOString(),
         ...safeCompletionData,
@@ -110,9 +105,22 @@ export function useTasks(filters?: TaskFilters) {
         .eq("task_id", taskId);
       if (error) throw error;
 
-      // Award XP and check streak (fire-and-forget)
-      if (user && taskData) {
-        awardTaskXP(user.id, taskData).catch(console.error);
+      // Award XP and check streak (fire-and-forget) using FRESH task data from DB
+      // to avoid stale data from UI form
+      if (user) {
+        const { data: freshTask } = await supabase
+          .from("tasks")
+          .select("task_type, actual_duration, accuracy_percentage")
+          .eq("task_id", taskId)
+          .single();
+
+        if (freshTask) {
+          awardTaskXP(user.id, {
+            task_type: freshTask.task_type,
+            actual_duration: freshTask.actual_duration ?? 0,
+            accuracy_percentage: freshTask.accuracy_percentage ?? null,
+          }).catch(console.error);
+        }
         recordStudyDay(user.id).catch(console.error);
       }
     },
@@ -169,16 +177,36 @@ export function useTasks(filters?: TaskFilters) {
 
   const bulkPostpone = useMutation({
     mutationFn: async ({ taskIds, newDate }: { taskIds: string[]; newDate: string }) => {
-      const { error } = await supabase
+      // First fetch the current scheduled_date for each task to preserve postponed_from_date
+      const { data: tasks } = await supabase
         .from("tasks")
-        .update({
-          status: "postponed",
-          is_postponed: true,
-          postponed_to_date: newDate,
-          scheduled_date: newDate,
-        })
+        .select("task_id, scheduled_date")
         .in("task_id", taskIds);
-      if (error) throw error;
+
+      // Build updates with individual postponed_from_date
+      const updates = tasks?.map(t => ({
+        task_id: t.task_id,
+        status: "postponed",
+        is_postponed: true,
+        postponed_from_date: t.scheduled_date,
+        postponed_to_date: newDate,
+        scheduled_date: newDate,
+      })) ?? [];
+
+      // Perform individual updates to preserve each task's original date
+      for (const update of updates) {
+        const { error } = await supabase
+          .from("tasks")
+          .update({
+            status: "postponed",
+            is_postponed: true,
+            postponed_from_date: update.postponed_from_date,
+            postponed_to_date: update.postponed_to_date,
+            scheduled_date: update.scheduled_date,
+          })
+          .eq("task_id", update.task_id);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tasks"] });

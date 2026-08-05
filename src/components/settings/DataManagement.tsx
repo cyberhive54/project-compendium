@@ -23,7 +23,6 @@ const BACKUP_TABLES = [
   "user_task_types",
   "study_sessions_config",
   "user_badges",
-  "backups_metadata",
 ];
 
 export function DataManagement() {

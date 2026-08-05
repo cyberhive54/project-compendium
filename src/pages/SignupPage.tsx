@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -57,11 +57,20 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [usernameError, setUsernameError] = useState("");
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: { username: "", email: "", password: "", confirmPassword: "" },
   });
+
+  // Watch username field to clear error when user types
+  const usernameValue = form.watch("username");
+  useEffect(() => {
+    if (usernameError && usernameValue) {
+      setUsernameError("");
+    }
+  }, [usernameValue, usernameError]);
 
   if (loading) {
     return (
@@ -121,6 +130,7 @@ export default function SignupPage() {
 
   const onSubmit = async (values: SignupFormValues) => {
     setIsSubmitting(true);
+    setUsernameError(""); // Clear previous error
     const { error } = await signUp(values.email, values.password, {
       username: values.username
     });
@@ -128,11 +138,15 @@ export default function SignupPage() {
     setIsSubmitting(false);
 
     if (error) {
-      toast({
-        variant: "destructive",
-        title: "Signup failed",
-        description: error.message,
-      });
+      if (error.message === "Username is already taken") {
+        setUsernameError(error.message);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Signup failed",
+          description: error.message,
+        });
+      }
     } else {
       setEmailSent(true);
       toast({
@@ -251,7 +265,7 @@ export default function SignupPage() {
                             {...field}
                           />
                         </FormControl>
-                        <FormMessage />
+                        {usernameError ? <FormMessage className="text-destructive">{usernameError}</FormMessage> : <FormMessage />}
                       </FormItem>
                     )}
                   />

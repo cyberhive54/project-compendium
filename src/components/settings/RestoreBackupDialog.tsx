@@ -48,7 +48,6 @@ const BACKUP_TABLES = [
   "user_task_types",
   "study_sessions_config",
   "user_badges",
-  "backups_metadata",
 ];
 
 function getConflictKey(table: string): string {
@@ -65,8 +64,7 @@ function getConflictKey(table: string): string {
     timer_sessions: "session_id",
     user_task_types: "task_type_id",
     study_sessions_config: "config_id",
-    user_badges: "user_badge_id",
-    backups_metadata: "backup_id",
+    user_badges: "user_id,badge_id",
   };
   return keys[table] ?? "id";
 }
@@ -204,7 +202,7 @@ export function RestoreBackupDialog({ open, onOpenChange }: Props) {
         .filter((r) => r.success)
         .reduce((sum, r) => sum + r.count, 0);
       toast.success(`Restored ${totalRestored} records`);
-    } catch (err: any) {
+    } catch (err: Error) {
       if (err.name === "OperationError") {
         setError("Wrong passphrase. Please try again.");
         setStep("passphrase");

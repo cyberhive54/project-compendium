@@ -31,7 +31,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { HierarchyItemForm } from "@/components/goals/HierarchyItemForm";
 import { TaskFormDialog } from "@/components/tasks/TaskFormDialog";
 import { toast } from "sonner";
-import type { Task } from "@/types/database";
+import type { Task, Stream, Subject, Chapter, Topic } from "@/types/database";
 
 interface GoalDetailContentProps {
   goalId: string;
@@ -77,7 +77,7 @@ export function GoalDetailContent({ goalId }: GoalDetailContentProps) {
   const [editingItem, setEditingItem] = useState<{
     type: "stream" | "subject" | "chapter" | "topic";
     id: string;
-    data: any;
+    data: Stream | Subject | Chapter | Topic;
   } | null>(null);
 
   // Data hooks
@@ -132,26 +132,25 @@ export function GoalDetailContent({ goalId }: GoalDetailContentProps) {
 
   const handleAddItem = (
     level: "stream" | "subject" | "chapter" | "topic",
-    values: Record<string, any>
+    values: Partial<Stream | Subject | Chapter | Topic>
   ) => {
-    // ... existing implementation ...
     switch (level) {
       case "stream":
         streamsHook.create.mutate(
-          { ...values, goal_id: goalId } as any,
+          { ...values, goal_id: goalId },
           {
             onSuccess: () => toast.success("Stream added"),
-            onError: (e: any) => toast.error(e.message),
+            onError: (e: Error) => toast.error(e.message),
           }
         );
         break;
       case "subject": {
         const dState = dialogState as { type: "subject"; streamId?: string | null };
         subjectsHook.create.mutate(
-          { ...values, goal_id: goalId, stream_id: dState?.streamId ?? null } as any,
+          { ...values, goal_id: goalId, stream_id: dState?.streamId ?? null },
           {
             onSuccess: () => toast.success("Subject added"),
-            onError: (e: any) => toast.error(e.message),
+            onError: (e: Error) => toast.error(e.message),
           }
         );
         break;
@@ -159,10 +158,10 @@ export function GoalDetailContent({ goalId }: GoalDetailContentProps) {
       case "chapter": {
         const dState = dialogState as { type: "chapter"; subjectId: string };
         chaptersHook.create.mutate(
-          { ...values, subject_id: dState?.subjectId } as any,
+          { ...values, subject_id: dState?.subjectId },
           {
             onSuccess: () => toast.success("Chapter added"),
-            onError: (e: any) => toast.error(e.message),
+            onError: (e: Error) => toast.error(e.message),
           }
         );
         break;
@@ -170,10 +169,10 @@ export function GoalDetailContent({ goalId }: GoalDetailContentProps) {
       case "topic": {
         const dState = dialogState as { type: "topic"; chapterId: string };
         topicsHook.create.mutate(
-          { ...values, chapter_id: dState?.chapterId } as any,
+          { ...values, chapter_id: dState?.chapterId },
           {
             onSuccess: () => toast.success("Topic added"),
-            onError: (e: any) => toast.error(e.message),
+            onError: (e: Error) => toast.error(e.message),
           }
         );
         break;
@@ -181,7 +180,7 @@ export function GoalDetailContent({ goalId }: GoalDetailContentProps) {
     }
   };
 
-  const handleEditItem = (values: any) => {
+  const handleEditItem = (values: Partial<Stream | Subject | Chapter | Topic>) => {
     if (!editingItem) return;
     const { type, id } = editingItem;
 
@@ -190,21 +189,21 @@ export function GoalDetailContent({ goalId }: GoalDetailContentProps) {
         toast.success(`${type} updated`);
         setEditingItem(null);
       },
-      onError: (e: any) => toast.error(`Failed to update ${type}`),
+      onError: (e: Error) => toast.error(`Failed to update ${type}`),
     };
 
     switch (type) {
       case "stream":
-        streamsHook.update.mutate({ id, ...values } as any, callbacks);
+        streamsHook.update.mutate({ id, ...values }, callbacks);
         break;
       case "subject":
-        subjectsHook.update.mutate({ id, ...values } as any, callbacks);
+        subjectsHook.update.mutate({ id, ...values }, callbacks);
         break;
       case "chapter":
-        chaptersHook.update.mutate({ id, ...values } as any, callbacks);
+        chaptersHook.update.mutate({ id, ...values }, callbacks);
         break;
       case "topic":
-        topicsHook.update.mutate({ id, ...values } as any, callbacks);
+        topicsHook.update.mutate({ id, ...values }, callbacks);
         break;
     }
   };
@@ -236,7 +235,7 @@ export function GoalDetailContent({ goalId }: GoalDetailContentProps) {
   const handleToggleTopicComplete = (id: string, currentStatus: boolean) => {
     topicsHook.toggleComplete.mutate({ id, completed: !currentStatus }, {
       onSuccess: () => toast.success(`Topic marked ${!currentStatus ? "complete" : "incomplete"}`),
-      onError: (e: any) => toast.error(e.message),
+      onError: (e: Error) => toast.error(e.message),
     });
   };
 
@@ -594,13 +593,13 @@ export function GoalDetailContent({ goalId }: GoalDetailContentProps) {
           isEditing
           onSubmit={(values) => {
             tasksHook.update.mutate(
-              { id: editingTask.task_id, ...values } as any,
+              { id: editingTask.task_id, ...values },
               {
                 onSuccess: () => {
                   toast.success("Task updated");
                   setEditingTask(null);
                 },
-                onError: (e: any) => toast.error(e.message),
+                onError: (e: Error) => toast.error(e.message),
               }
             );
           }}
@@ -616,9 +615,9 @@ export function GoalDetailContent({ goalId }: GoalDetailContentProps) {
           presetChapterId={selectedChapterId ?? undefined}
           presetTopicId={selectedTopicId ?? undefined}
           onSubmit={(values) => {
-            tasksHook.create.mutate(values as Partial<Task>, {
+            tasksHook.create.mutate(values, {
               onSuccess: () => toast.success("Task created!"),
-              onError: (e: any) => toast.error(e.message),
+              onError: (e: Error) => toast.error(e.message),
             });
           }}
         />

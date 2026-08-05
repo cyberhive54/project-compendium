@@ -166,7 +166,7 @@ function ChapterSection({ chapter, onEdit, onArchive }: {
         onSubmit={(values) => {
           topicsHook.create.mutate(
             { ...values, chapter_id: chapter.chapter_id },
-            { onError: (e: any) => toast.error(e.message) }
+            { onError: (e: Error) => toast.error(e.message) }
           );
         }}
       />
@@ -182,7 +182,7 @@ function ChapterSection({ chapter, onEdit, onArchive }: {
           onSubmit={(values) => {
             topicsHook.update.mutate(
               { id: editingTopic.topic_id, ...values },
-              { onError: (e: any) => toast.error(e.message) }
+              { onError: (e: Error) => toast.error(e.message) }
             );
             setEditingTopic(null);
           }}
@@ -312,7 +312,7 @@ function SubjectSection({ subject, onEdit, onArchive }: {
         onSubmit={(values) => {
           chaptersHook.create.mutate(
             { ...values, subject_id: subject.subject_id },
-            { onError: (e: any) => toast.error(e.message) }
+            { onError: (e: Error) => toast.error(e.message) }
           );
         }}
       />
@@ -328,7 +328,7 @@ function SubjectSection({ subject, onEdit, onArchive }: {
           onSubmit={(values) => {
             chaptersHook.update.mutate(
               { id: editingChapter.chapter_id, ...values },
-              { onError: (e: any) => toast.error(e.message) }
+              { onError: (e: Error) => toast.error(e.message) }
             );
             setEditingChapter(null);
           }}
@@ -436,7 +436,7 @@ function StreamSection({ stream, goalId, onEdit, onArchive }: {
         onSubmit={(values) => {
           subjectsHook.create.mutate(
             { ...values, goal_id: goalId, stream_id: stream.stream_id },
-            { onError: (e: any) => toast.error(e.message) }
+            { onError: (e: Error) => toast.error(e.message) }
           );
         }}
       />
@@ -452,7 +452,7 @@ function StreamSection({ stream, goalId, onEdit, onArchive }: {
           onSubmit={(values) => {
             subjectsHook.update.mutate(
               { id: editingSubject.subject_id, ...values },
-              { onError: (e: any) => toast.error(e.message) }
+              { onError: (e: Error) => toast.error(e.message) }
             );
             setEditingSubject(null);
           }}
@@ -637,7 +637,7 @@ export function HierarchyTree({ goalId }: HierarchyTreeProps) {
         onSubmit={(values) => {
           streamsHook.create.mutate(
             { ...values, goal_id: goalId },
-            { onError: (e: any) => toast.error(e.message) }
+            { onError: (e: Error) => toast.error(e.message) }
           );
         }}
       />
@@ -650,7 +650,7 @@ export function HierarchyTree({ goalId }: HierarchyTreeProps) {
         onSubmit={(values) => {
           directSubjectsHook.create.mutate(
             { ...values, goal_id: goalId, stream_id: null },
-            { onError: (e: any) => toast.error(e.message) }
+            { onError: (e: Error) => toast.error(e.message) }
           );
         }}
       />
@@ -666,7 +666,7 @@ export function HierarchyTree({ goalId }: HierarchyTreeProps) {
           onSubmit={(values) => {
             streamsHook.update.mutate(
               { id: editingStream.stream_id, ...values },
-              { onError: (e: any) => toast.error(e.message) }
+              { onError: (e: Error) => toast.error(e.message) }
             );
             setEditingStream(null);
           }}
@@ -684,7 +684,7 @@ export function HierarchyTree({ goalId }: HierarchyTreeProps) {
           onSubmit={(values) => {
             directSubjectsHook.update.mutate(
               { id: editingSubject.subject_id, ...values },
-              { onError: (e: any) => toast.error(e.message) }
+              { onError: (e: Error) => toast.error(e.message) }
             );
             setEditingSubject(null);
           }}
