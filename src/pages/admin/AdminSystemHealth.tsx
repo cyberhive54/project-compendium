@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { Activity, Database, Server, Smartphone, Users, CheckCircle, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function AdminSystemHealth() {
+    const { user } = useAuth();
     const [stats, setStats] = useState({
         dbConnected: false,
         latency: 0,
@@ -17,9 +19,10 @@ export default function AdminSystemHealth() {
         checkHealth();
         const interval = setInterval(checkHealth, 30000); // Check every 30s
         return () => clearInterval(interval);
-    }, []);
+    }, [user]);
 
     const checkHealth = async () => {
+        if (!user) return;
         const start = performance.now();
 
         // 1. Check DB Connection & Latency
@@ -27,13 +30,13 @@ export default function AdminSystemHealth() {
         const end = performance.now();
         const latency = Math.round(end - start);
 
-        // 2. Get Counts (Approximate)
-        // Note: For real apps, these might be heavy queries. 
+        // 2. Get Counts (Scoped to current user)
+        // Note: For real apps, these might be heavy queries.
         // We Use simple counts here.
-        const { count: users } = await supabase.from('user_profiles').select('*', { count: 'exact', head: true });
+        const { count: users } = await supabase.from('user_profiles').select('*', { count: 'exact', head: true }).eq('user_id', user.id);
         // Using user_profiles as proxy for users since auth.users is protected
 
-        const { count: tasks } = await supabase.from('tasks').select('*', { count: 'exact', head: true });
+        const { count: tasks } = await supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('user_id', user.id);
 
         setStats({
             dbConnected: !error,

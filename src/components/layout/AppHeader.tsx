@@ -1,8 +1,9 @@
-import { Menu, Bell, BookOpen, LogOut } from "lucide-react";
+import { Menu, Bell, BookOpen, LogOut, Shield, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/useAuth";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -16,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 export function AppHeader() {
   const { toggleSidebar } = useSidebar();
   const { profile, signOut } = useAuth();
+  const { isAdmin, isModerator, isAdminOrModerator } = useAdminAuth();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -77,6 +79,16 @@ export function AppHeader() {
             <DropdownMenuItem onClick={() => navigate("/settings")}>
               Edit Profile
             </DropdownMenuItem>
+            {isAdminOrModerator && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate(isAdmin ? "/admin" : "/admin/feedback")}>
+                  {isAdmin && <Shield className="mr-2 h-4 w-4" />}
+                  {isModerator && !isAdmin && <Users className="mr-2 h-4 w-4" />}
+                  {isAdmin ? "Admin Panel" : "Moderator Panel"}
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
               <LogOut className="mr-2 h-4 w-4" />

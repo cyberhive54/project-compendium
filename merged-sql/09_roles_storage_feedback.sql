@@ -81,8 +81,8 @@ CREATE POLICY "Users can create own feedback"
   ON feedback FOR INSERT TO authenticated WITH CHECK (user_id = auth.uid());
 CREATE POLICY "Users can update own feedback"
   ON feedback FOR UPDATE TO authenticated USING (user_id = auth.uid());
-CREATE POLICY "Admins can update feedback"
-  ON feedback FOR UPDATE TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Admins and moderators can update feedback"
+  ON feedback FOR UPDATE TO authenticated USING (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'moderator'));
 
 -- Feedback updated_at trigger
 CREATE OR REPLACE FUNCTION update_feedback_updated_at()

@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import {
   User, Palette, Timer, Shield, Database,
   CalendarDays, ListTodo, FileInput, FileClock,
-  ChevronRight,
+  MonitorSmartphone, ChevronRight,
 } from "lucide-react";
 import { ProfileSettings } from "@/components/settings/ProfileSettings";
 import { AppearanceSettings } from "@/components/settings/AppearanceSettings";
@@ -14,6 +14,7 @@ import { DataManagement } from "@/components/settings/DataManagement";
 import { TaskTypeSettings } from "@/components/settings/TaskTypeSettings";
 import { SyllabusImportSettings } from "@/components/settings/SyllabusImportSettings";
 import { TaskTemplateSettings } from "@/components/settings/TaskTemplateSettings";
+import { LoginSessionsSettings } from "@/components/settings/LoginSessionsSettings";
 
 const sections = [
   {
@@ -21,6 +22,7 @@ const sections = [
     items: [
       { id: "profile", label: "Profile", icon: User, description: "Username, avatar, password" },
       { id: "appearance", label: "Appearance", icon: Palette, description: "Theme & display" },
+      { id: "loginsessions", label: "Login Sessions", icon: MonitorSmartphone, description: "Manage active logins" },
     ],
   },
   {
@@ -45,6 +47,7 @@ const sections = [
 const sectionComponents: Record<string, React.FC> = {
   profile: ProfileSettings,
   appearance: AppearanceSettings,
+  loginsessions: LoginSessionsSettings,
   pomodoro: PomodoroSettings,
   streaks: StreakSettings,
   sessions: StudySessionsSettings,

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export default function AdminLayout() {
-    const { user, isAdmin, loading } = useAdminAuth();
+    const { user, isAdmin, isModerator, isAdminOrModerator, loading } = useAdminAuth();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -24,7 +24,7 @@ export default function AdminLayout() {
         );
     }
 
-    if (!isAdmin) {
+    if (!isAdminOrModerator) {
         return (
             <div className="flex h-screen w-full flex-col items-center justify-center gap-4">
                 <ShieldAlert className="h-16 w-16 text-destructive" />
@@ -37,69 +37,61 @@ export default function AdminLayout() {
         );
     }
 
-    const navItems = [
-        { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-        { href: "/admin/users", label: "Users", icon: Users },
-        { href: "/admin/badges", label: "Badges", icon: Award },
-        { href: "/admin/feedback", label: "Reviews", icon: MessageSquare },
-        { href: "/admin/contact-us", label: "Messages", icon: Mail },
-        { href: "/admin/health", label: "Health", icon: Activity },
-        { href: "/admin/notes", label: "My Notes", icon: FileText },
-        { href: "/admin/docs-dev", label: "Dev Docs", icon: Book },
-    ];
+    // Moderators only see Feedback and Contact pages
+    const isModeratorOnly = isModerator && !isAdmin;
+    const navItems = isModeratorOnly
+        ? [
+            { href: "/admin/feedback", label: "Reviews", icon: MessageSquare },
+            { href: "/admin/contact-us", label: "Messages", icon: Mail },
+        ]
+        : [
+            { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+            { href: "/admin/users", label: "Users", icon: Users },
+            { href: "/admin/badges", label: "Badges", icon: Award },
+            { href: "/admin/feedback", label: "Reviews", icon: MessageSquare },
+            { href: "/admin/contact-us", label: "Messages", icon: Mail },
+            { href: "/admin/health", label: "System Health", icon: Activity },
+        ];
 
     return (
-        <div className="min-h-screen bg-background flex flex-col md:flex-row">
-            {/* Sidebar */}
-            <aside className="w-full md:w-64 border-r bg-muted/30 md:min-h-screen flex-shrink-0">
-                <div className="h-16 flex items-center px-6 border-b font-bold text-lg tracking-tight">
-                    Admin Console
+        <div className="flex h-screen w-full flex-col">
+            <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
+                <div className="flex items-center gap-2">
+                    <BookOpen className="h-6 w-6 text-primary" />
+                    <span className="text-lg font-bold tracking-tight">Admin</span>
                 </div>
-                <div className="p-4 space-y-2">
-                    {navItems.map((item) => {
-                        const isActive = item.exact
-                            ? location.pathname === item.href
-                            : location.pathname.startsWith(item.href);
-
-                        return (
-                            <Link
-                                key={item.href}
-                                to={item.href}
-                                className={cn(
-                                    "flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-sm font-medium",
-                                    isActive
-                                        ? "bg-primary text-primary-foreground"
-                                        : "hover:bg-muted text-muted-foreground hover:text-foreground"
-                                )}
-                            >
-                                <item.icon className="h-4 w-4" />
-                                {item.label}
-                            </Link>
-                        );
-                    })}
+                <nav className="flex-1 flex items-center justify-center">
+                    <ul className="flex gap-1">
+                        {navItems.map((item) => (
+                            <li key={item.href}>
+                                <Link
+                                    to={item.href}
+                                    className={cn(
+                                        "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                                        "hover:bg-accent hover:text-accent-foreground",
+                                        location.pathname === item.href || (item.exact && location.pathname === item.href)
+                                            ? "bg-accent text-accent-foreground"
+                                            : "text-muted-foreground"
+                                    )}
+                                >
+                                    <item.icon className="h-4 w-4" />
+                                    {item.label}
+                                </Link>
+                            </li>
+                        ))}
+                    </ul>
+                </nav>
+                <div className="flex items-center gap-2">
+                    <Link to="/">
+                        <Button variant="ghost" size="sm">
+                            <LogOut className="mr-2 h-4 w-4" />
+                            Back to App
+                        </Button>
+                    </Link>
                 </div>
-                <div className="p-4 mt-auto border-t">
-                    <Button
-                        variant="ghost"
-                        className="w-full justify-start gap-3 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => navigate("/")}
-                    >
-                        <LogOut className="h-4 w-4" />
-                        Exit Admin
-                    </Button>
-                </div>
-            </aside>
-
-            {/* Main Content */}
-            <main className="flex-1 overflow-auto">
-                <header className="h-16 border-b flex items-center px-6 md:px-10 justify-between">
-                    <h1 className="font-semibold text-lg">
-                        {navItems.find(i => i.href === location.pathname)?.label || "Administration"}
-                    </h1>
-                </header>
-                <div className="p-6 md:p-10 max-w-7xl mx-auto">
-                    <Outlet />
-                </div>
+            </header>
+            <main className="flex-1 overflow-y-auto p-6">
+                <Outlet />
             </main>
         </div>
     );

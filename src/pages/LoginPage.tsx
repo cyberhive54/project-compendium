@@ -77,9 +77,9 @@ export default function LoginPage() {
       }
     } else {
       if (rememberMe) {
-        localStorage.removeItem("studytracker_login_timestamp");
-      } else {
         localStorage.setItem("studytracker_login_timestamp", Date.now().toString());
+      } else {
+        localStorage.removeItem("studytracker_login_timestamp");
       }
     }
   };

@@ -75,6 +75,34 @@ WHERE user_id = 'YOUR_USER_ID_HERE'
 
 ---
 
+## Detailed Breakdown: Admin vs Moderator
+
+| Capability | Admin | Moderator | Notes |
+|------------|-------|-----------|-------|
+| **Admin Dashboard Access** | ✅ Full | ❌ No | `/admin/*` routes protected by `AdminLayout` |
+| **User Management** | ✅ View, promote, demote | ❌ No | `/admin/users` page |
+| **Badge Management** | ✅ Create, edit, delete | ❌ No | `/admin/badges` page |
+| **Feedback/Reviews** | ✅ View, update status, delete | ✅ View only | `/admin/feedback` page |
+| **Contact Messages** | ✅ View, update, delete | ✅ View only | `/admin/contact-us` page |
+| **System Health** | ✅ View stats | ❌ No | `/admin/health` page |
+| **Manage Roles** | ✅ Grant/revoke any role | ❌ No | Can make other admins |
+| **Delete Users** | ✅ (via SQL only) | ❌ No | Requires service role key |
+| **Database Access** | ✅ Via admin functions | ❌ No | `get_admin_user_list()` RPC |
+| **Settings/Config** | ❌ Not in UI yet | ❌ No | Future: feature flags, etc. |
+
+### Summary
+- **Admin** = Full control over the application's admin surface area
+- **Moderator** = Read-only access to user-generated content (feedback, contact messages) for triage/support
+- **User** = Standard app user, no admin panel access
+
+The RLS policy `"Admins can manage roles"` (in `09_roles_storage_feedback.sql`) enforces this at the database level:
+```sql
+USING (public.has_role(auth.uid(), 'admin'))
+```
+Only users with `admin` role can INSERT/UPDATE/DELETE in `user_roles`.
+
+---
+
 ## How It Works
 
 The `user_roles` table (created by `021_create_user_roles.sql`) stores role assignments. The app checks for admin access using the `has_role()` function:
