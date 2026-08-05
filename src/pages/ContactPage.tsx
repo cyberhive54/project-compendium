@@ -3,7 +3,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { BookOpen, CheckCircle2, Loader2, Mail, MapPin, Send } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,10 +25,10 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 
 const contactSchema = z.object({
-    name: z.string().min(2, "Name must be at least 2 characters"),
-    email: z.string().email("Please enter a valid email address"),
-    subject: z.string().min(5, "Subject must be at least 5 characters"),
-    message: z.string().min(10, "Message must be at least 10 characters"),
+    name: z.string().min(2, "Name must be at least 2 characters").max(100, "Name must be at most 100 characters"),
+    email: z.string().email("Please enter a valid email address").max(254, "Email must be at most 254 characters"),
+    subject: z.string().min(5, "Subject must be at least 5 characters").max(200, "Subject must be at most 200 characters"),
+    message: z.string().min(10, "Message must be at least 10 characters").max(2000, "Message must be at most 2000 characters"),
 });
 
 type ContactFormValues = z.infer<typeof contactSchema>;
@@ -86,14 +85,16 @@ export default function ContactPage() {
 
         setIsSubmitting(true);
         try {
-            const { error } = await supabase.from("contact_submissions").insert({
-                name: values.name,
-                email: values.email,
-                subject: values.subject,
-                message: values.message,
+            const res = await fetch("/api/contact", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(values),
             });
 
-            if (error) throw error;
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data?.error || "Failed to send message. Please try again.");
+            }
 
             setIsSuccess(true);
             toast({
@@ -106,7 +107,7 @@ export default function ContactPage() {
             localStorage.setItem("last_contact_sent", Date.now().toString());
             setCooldown(300); // 5 minutes in seconds
 
-        } catch (error: any) {
+        } catch (error: Error) {
             toast({
                 variant: "destructive",
                 title: "Error sending message",
