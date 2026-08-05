@@ -1,35 +1,42 @@
 import { createClient } from "@supabase/supabase-js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
-// Initialize Supabase client
-const SUPABASE_URL = "https://ewdprhronbnjvhzvcymt.supabase.co";
+// Read from environment variables (set in Vercel dashboard) so the cron
+// pings the SAME project the app uses.
+const SUPABASE_URL =
+  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
 const SUPABASE_ANON_KEY =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3ZHByaHJvbmJuanZoenZjeW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NjY5NzgsImV4cCI6MjA4NjA0Mjk3OH0.CvaZQTDrVXv1xaV3u2-J9G701SgEyFcodp4Ep3OV1JM";
+  process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export default async function handler(
-    request: VercelRequest,
-    response: VercelResponse
+  request: VercelRequest,
+  response: VercelResponse
 ) {
-    try {
-        // Perform a simple read operation to keep the database active
-        const { count, error } = await supabase
-            .from("user_profiles")
-            .select("*", { count: "exact", head: true });
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return response.status(500).json({
+      error: "Missing Supabase env vars. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel.",
+    });
+  }
 
-        if (error) {
-            throw error;
-        }
+  try {
+    // Call the SECURITY DEFINER ping() function — always performs a real DB
+    // query regardless of RLS, which counts as database activity.
+    const { data, error } = await supabase.rpc("ping");
 
-        return response.status(200).json({
-            message: "Supabase pinged successfully",
-            timestamp: new Date().toISOString(),
-            user_count: count,
-        });
-    } catch (error: any) {
-        return response.status(500).json({
-            error: error.message,
-        });
+    if (error) {
+      throw error;
     }
+
+    return response.status(200).json({
+      message: "Supabase pinged successfully",
+      timestamp: new Date().toISOString(),
+      db: data,
+    });
+  } catch (error: any) {
+    return response.status(500).json({
+      error: error.message,
+    });
+  }
 }
